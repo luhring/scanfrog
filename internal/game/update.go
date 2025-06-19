@@ -38,9 +38,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "down", "s":
-		// Account for header (2 lines)
-		gameHeight := m.height - 2
-		if m.frog.y < gameHeight-1 {
+		if m.frog.y < gameAreaHeight-1 {
 			m.frog.y++
 			if !m.hasMoved {
 				m.hasMoved = true
@@ -67,17 +65,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Check win condition
 	if m.frog.y == 0 {
-		m.currentWave++
-		if m.currentWave >= m.totalWaves {
-			m.state = stateVictory
-			return m, nil // Don't quit, show victory screen
-		}
-		// Reset frog for next wave (account for header)
-		gameHeight := m.height - 2
-		m.frog = position{x: m.width / 2, y: gameHeight - 1}
-		m.waveTimer = time.Now()
-		// Reset movement tracking for new wave
-		m.hasMoved = false
+		m.state = stateVictory
+		return m, nil // Don't quit, show victory screen
 	}
 
 	return m, nil
@@ -88,28 +77,19 @@ func (m Model) startGame(vulns []grype.Vulnerability) Model {
 	m.gameStartTime = time.Now()
 	m.totalVulns = len(vulns)
 
-	// Calculate waves
-	const vulnsPerWave = 50
-	m.totalWaves = int(math.Ceil(float64(len(vulns)) / float64(vulnsPerWave)))
-	if m.totalWaves == 0 {
-		m.totalWaves = 1
-	}
-	m.currentWave = 0
-
-	// Position frog at bottom center (account for header)
-	gameHeight := m.height - 2
+	// Position frog at bottom of game area
 	m.frog = position{
 		x: m.width / 2,
-		y: gameHeight - 1,
+		y: gameAreaHeight - 1,
 	}
 
-	// Initialize lanes - start much closer to the frog
-	m.lanes = make([]lane, 0, 10)
-	startLane := gameHeight - 3 // Start lanes just above the frog
-	for i := 0; i < 10 && startLane-i > 0; i++ {
+	// Initialize lanes - tighter spacing for fixed height
+	m.lanes = make([]lane, 0, 8)
+	startLane := gameAreaHeight - 3             // Start lanes just above the frog
+	for i := 0; i < 8 && startLane-i > 1; i++ { // Leave room for finish line
 		m.lanes = append(m.lanes, lane{
-			y:         startLane - i,
-			direction: 1 - 2*(i%2), // Alternate directions
+			y:         startLane - i*2, // More spacing between lanes
+			direction: 1 - 2*(i%2),     // Alternate directions
 			speed:     0.5 + float64(i%3)*0.3,
 		})
 	}
@@ -182,17 +162,8 @@ func getObstacleProperties(vuln grype.Vulnerability) (width int, speedMultiplier
 func (m *Model) generateObstacles(vulns []grype.Vulnerability) {
 	m.obstacles = nil
 
-	// For this wave, take the appropriate slice of vulnerabilities
-	startIdx := m.currentWave * 50
-	endIdx := startIdx + 50
-	if endIdx > len(vulns) {
-		endIdx = len(vulns)
-	}
-
-	waveVulns := vulns[startIdx:endIdx]
-
-	// Distribute vulnerabilities across lanes
-	for i, vuln := range waveVulns {
+	// Distribute ALL vulnerabilities across lanes - no waves!
+	for i, vuln := range vulns {
 		laneIdx := i % len(m.lanes)
 		lane := m.lanes[laneIdx]
 
@@ -319,16 +290,18 @@ func (m *Model) initializeDecorativeItems() {
 
 	// Create about 10-15 floating hearts and stars
 	symbols := []string{"💚", "✨", "💚", "⭐", "💚", "✨"}
-	gameHeight := m.height - 2
 
 	for i := 0; i < 12; i++ {
 		// Distribute across the screen, avoiding the frog's starting position
 		x := (i * m.width / 12) + (i % 3) - 1
-		y := 2 + (i % (gameHeight - 4)) // Keep away from finish line and bottom
+		y := 1 + (i % (gameAreaHeight - 2)) // Start at row 1, avoid finish line and bottom
 
 		// Don't place on the frog's starting position
 		if y == m.frog.y && x >= m.frog.x-2 && x <= m.frog.x+2 {
-			y = (y + 3) % (gameHeight - 2)
+			y = (y + 3) % (gameAreaHeight - 1)
+			if y == 0 {
+				y = 1 // Avoid finish line
+			}
 		}
 
 		m.decorativeItems = append(m.decorativeItems, decorativeItem{

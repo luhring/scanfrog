@@ -128,14 +128,8 @@ func (m Model) renderLoading() string {
 }
 
 func (m Model) renderGame() string {
-	// Account for header (2 lines)
-	gameHeight := m.height - 2
-	if gameHeight < 10 {
-		gameHeight = 10
-	}
-
-	// Create game board
-	board := make([][]rune, gameHeight)
+	// Create fixed-size game board
+	board := make([][]rune, gameAreaHeight)
 	for i := range board {
 		board[i] = make([]rune, m.width)
 		for j := range board[i] {
@@ -212,36 +206,64 @@ func (m Model) renderGame() string {
 	// Convert board to string with styling
 	var output strings.Builder
 
-	// Header
-	header := fmt.Sprintf("SCANFROG - Wave %d/%d - Lives: %d",
-		m.currentWave+1, m.totalWaves, m.lives)
-	output.WriteString(scoreStyle.Render(header))
+	// Calculate vertical centering
+	topMargin := 0
+	if m.height > minTerminalHeight {
+		topMargin = (m.height - minTerminalHeight) / 2
+	}
+
+	// Add top margin
+	for i := 0; i < topMargin; i++ {
+		output.WriteString("\n")
+	}
+
+	// Modern header with image name and vulnerability count
+	headerText := "scanfrog"
+	if m.containerImage != "" {
+		headerText = fmt.Sprintf("scanfrog • %s", m.containerImage)
+		if m.totalVulns > 0 {
+			headerText = fmt.Sprintf("scanfrog • %s • %d vulnerabilities", m.containerImage, m.totalVulns)
+		}
+	}
+	output.WriteString(scoreStyle.Render(headerText))
 	output.WriteString("\n")
-	separator := strings.Repeat("═", m.width)
+	separator := strings.Repeat("─", m.width)
 	output.WriteString(separatorStyle.Render(separator))
 	output.WriteString("\n")
 
-	// Finish line at the top - draw it as part of the first row
-	// We'll incorporate it into the board rendering instead
-
 	// Game board
 	for y, row := range board {
-		// Check if we should show hint on this row (2 rows below finish line)
-		if y == 2 && (!m.hasMoved || time.Since(m.firstMoveTime) < time.Second) {
-			var hintText string
-			if m.isZeroVulnGame {
-				hintText = "Ahhh, so peaceful! (And boring!) Proceed to the finish line to win!"
+		// Special handling for row 2 - hint area
+		if y == 2 {
+			// If frog is on row 2, render normally
+			if m.frog.y == 2 {
+				// Normal row rendering for row 2 when frog is present
+				for x := 0; x < len(row); x++ {
+					cell := row[x]
+					cellStr := string(cell)
+					if cell == 'F' && m.frog.x == x {
+						cellStr = frogStyle.Render("🐸")
+						x++ // Skip next cell for emoji width
+					}
+					output.WriteString(cellStr)
+				}
+				output.WriteString("\n\n") // Normal row + blank line
+			} else if !m.hasMoved || time.Since(m.firstMoveTime) < time.Second {
+				// Show hint text when frog is not on row 2
+				var hintText string
+				if m.isZeroVulnGame {
+					hintText = "Ahhh, so peaceful! (And boring!) Proceed to the finish line to win!"
+				} else {
+					hintText = "Make it to the finish line without getting hit by anything!"
+				}
+				hintStyled := hintStyle.Width(m.width).Render(hintText)
+				output.WriteString(hintStyled)
+				output.WriteString("\n\n") // Hint text + blank line
 			} else {
-				hintText = "Make it to the finish line without getting hit by anything!"
+				// No hint, no frog - just empty space + blank line
+				output.WriteString("\n\n") // Empty row + blank line
 			}
-			// Render the hint text centered
-			hintStyled := hintStyle.Width(m.width).Render(hintText)
-			output.WriteString(hintStyled)
-			// Only add newline if not the last row
-			if y < len(board)-1 {
-				output.WriteString("\n")
-			}
-			continue // Skip normal row rendering for hint row
+			continue
 		}
 
 		// Normal row rendering

@@ -17,6 +17,13 @@ const (
 	stateVictory
 )
 
+const (
+	// gameAreaHeight is the fixed height of the playable game area
+	gameAreaHeight = 20
+	// minTerminalHeight is the minimum terminal height required
+	minTerminalHeight = 22 // gameAreaHeight + 2 for header
+)
+
 type position struct {
 	x, y int
 }
@@ -43,13 +50,6 @@ type Model struct {
 	frog      position
 	obstacles []obstacle
 	lanes     []lane
-	lives     int
-
-	// Wave management
-	currentWave  int
-	totalWaves   int
-	waveTimer    time.Time
-	waveDuration time.Duration
 
 	// Victory tracking
 	gameStartTime  time.Time
@@ -104,11 +104,9 @@ func NewModel(vulnSource grype.VulnerabilitySource) *Model {
 		state:          stateLoading,
 		loadingMsg:     loadingMsg,
 		containerImage: containerImage,
-		lives:          3,
 		width:          80,
 		height:         24,
 		lastUpdate:     time.Now(),
-		waveDuration:   15 * time.Second,
 	}
 }
 
@@ -203,8 +201,6 @@ func (m Model) tick() tea.Cmd {
 func (m Model) restartGame() (tea.Model, tea.Cmd) {
 	// Reset game state while keeping loaded vulnerabilities
 	m.state = statePlaying
-	m.currentWave = 0
-	m.lives = 3
 	m.hasMoved = false
 	m.collisionCVE = ""
 	m.collisionMsg = ""

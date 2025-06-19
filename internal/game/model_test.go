@@ -32,16 +32,13 @@ func TestNewModel(t *testing.T) {
 	if model.state != stateLoading {
 		t.Errorf("expected initial state Loading, got %v", model.state)
 	}
-	if model.lives != 3 {
-		t.Errorf("expected 3 lives, got %d", model.lives)
-	}
 	if model.vulnSource == nil {
 		t.Error("expected vulnSource to be set")
 	}
 }
 
-func TestWaveSystem(t *testing.T) {
-	// Create 150 vulnerabilities to test wave splitting
+func TestAllVulnerabilitiesAtOnce(t *testing.T) {
+	// Create 150 vulnerabilities to test that all are displayed at once
 	vulns := make([]grype.Vulnerability, 150)
 	for i := range vulns {
 		vulns[i] = grype.Vulnerability{
@@ -55,15 +52,9 @@ func TestWaveSystem(t *testing.T) {
 	// Simulate vulnerabilities loaded
 	*model = model.startGame(vulns)
 
-	// Should create 3 waves (50 + 50 + 50)
-	expectedWaves := 3
-	if model.totalWaves != expectedWaves {
-		t.Errorf("expected %d waves, got %d", expectedWaves, model.totalWaves)
-	}
-
-	// Current wave should start at 0
-	if model.currentWave != 0 {
-		t.Errorf("expected current wave 0, got %d", model.currentWave)
+	// All vulnerabilities should be loaded as obstacles
+	if len(model.obstacles) != 150 {
+		t.Errorf("expected 150 obstacles (all vulns), got %d", len(model.obstacles))
 	}
 }
 
