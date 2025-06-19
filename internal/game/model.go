@@ -193,7 +193,9 @@ func (m Model) loadVulnerabilities() tea.Cmd {
 }
 
 func (m Model) tick() tea.Cmd {
-	return tea.Tick(time.Second/60, func(t time.Time) tea.Msg {
+	// 30 FPS provides smooth gameplay while reducing CPU usage
+	// Physics use delta time, so game speed remains consistent
+	return tea.Tick(time.Second/30, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }

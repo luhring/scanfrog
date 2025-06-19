@@ -1,7 +1,9 @@
 package game
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/luhring/scanfrog/internal/grype"
 )
@@ -208,5 +210,47 @@ func TestObstacleGeneration(t *testing.T) {
 	}
 	if len(laneCounts) < 2 {
 		t.Error("obstacles should be distributed across multiple lanes")
+	}
+}
+
+func TestDeltaTimePhysics(t *testing.T) {
+	// Test that obstacle movement is frame-rate independent
+	vulns := []grype.Vulnerability{
+		{ID: "CVE-2021-1", Severity: "Medium", CVSS: 5.0},
+	}
+	source := &mockVulnerabilitySource{vulns: vulns}
+
+	model := NewModel(source)
+	model.width = 80
+	model.height = 24
+	gameModel := model.startGame(vulns)
+
+	// Record initial obstacle position
+	if len(gameModel.obstacles) == 0 {
+		t.Fatal("No obstacles generated")
+	}
+	initialX := gameModel.obstacles[0].floatX
+	initialSpeed := gameModel.obstacles[0].speed
+
+	// Simulate 1 second of game time with variable frame intervals
+	// This tests that movement is consistent regardless of frame rate
+	totalTime := 0.0
+	expectedMovement := initialSpeed * 1.0 * 30.0 // speed * 1 second * 30.0 multiplier
+
+	// Simulate with irregular intervals (simulating variable frame times)
+	intervals := []float64{0.033, 0.040, 0.027, 0.050, 0.033, 0.817} // Total: 1.0 second
+	for _, interval := range intervals {
+		gameModel.lastUpdate = gameModel.lastUpdate.Add(-time.Duration(interval * float64(time.Second)))
+		gameModel = gameModel.updateGame()
+		totalTime += interval
+	}
+
+	// Check that obstacle moved the expected distance
+	actualMovement := gameModel.obstacles[0].floatX - initialX
+	tolerance := 0.1 // Small tolerance for floating point
+
+	if math.Abs(actualMovement-expectedMovement) > tolerance {
+		t.Errorf("Obstacle movement not frame-rate independent: expected %.2f, got %.2f",
+			expectedMovement, actualMovement)
 	}
 }
