@@ -1,0 +1,94 @@
+{
+  "matches": [
+    {
+      "vulnerability": {
+        "id": "CVE-2024-1234",
+        "severity": "High",
+        "description": "Buffer overflow in libfoo",
+        "cvss": [
+          {
+            "source": "nvd",
+            "type": "cvss_v3",
+            "baseScore": 7.5
+          }
+        ]
+      },
+      "artifact": {
+        "name": "libfoo",
+        "version": "1.2.3"
+      }
+    },
+    {
+      "vulnerability": {
+        "id": "CVE-2024-5678",
+        "severity": "Critical",
+        "description": "Remote code execution in openssl",
+        "cvss": [
+          {
+            "source": "nvd",
+            "type": "cvss_v3",
+            "baseScore": 9.8
+          }
+        ]
+      },
+      "artifact": {
+        "name": "openssl",
+        "version": "1.1.1"
+      }
+    },
+    {
+      "vulnerability": {
+        "id": "CVE-2023-9999",
+        "severity": "Medium",
+        "description": "Information disclosure in zlib",
+        "cvss": [
+          {
+            "source": "nvd",
+            "type": "cvss_v3",
+            "baseScore": 5.3
+          }
+        ]
+      },
+      "artifact": {
+        "name": "zlib",
+        "version": "1.2.11"
+      }
+    },
+    {
+      "vulnerability": {
+        "id": "CVE-2023-1111",
+        "severity": "Low",
+        "description": "Minor issue in curl",
+        "cvss": [
+          {
+            "source": "nvd",
+            "type": "cvss_v3",
+            "baseScore": 2.1
+          }
+        ]
+      },
+      "artifact": {
+        "name": "curl",
+        "version": "7.68.0"
+      }
+    },
+    {
+      "vulnerability": {
+        "id": "CVE-2024-7777",
+        "severity": "High",
+        "description": "SQL injection in database driver",
+        "cvss": [
+          {
+            "source": "nvd",
+            "type": "cvss_v3",
+            "baseScore": 8.1
+          }
+        ]
+      },
+      "artifact": {
+        "name": "libpq",
+        "version": "12.1"
+      }
+    }
+  ]
+}
