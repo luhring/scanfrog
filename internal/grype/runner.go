@@ -60,9 +60,13 @@ type ScannerSource struct {
 
 // GetVulnerabilities runs Grype and returns vulnerabilities
 func (s *ScannerSource) GetVulnerabilities() ([]Vulnerability, error) {
-	cmd := exec.Command("grype", s.Image, "-o", "json")
+	cmd := exec.Command("grype", s.Image, "-o", "json", "-q")
 	output, err := cmd.Output()
 	if err != nil {
+		// If it's an exec error, try to get stderr for better error message
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("grype failed: %s", exitErr.Stderr)
+		}
 		return nil, fmt.Errorf("failed to run grype: %w", err)
 	}
 	
@@ -99,10 +103,26 @@ func parseGrypeOutput(data []byte) ([]Vulnerability, error) {
 			Description: match.Vulnerability.Description,
 		}
 		
-		// Get highest CVSS score
+		// Get highest CVSS score, preferring non-zero scores
 		for _, cvss := range match.Vulnerability.CVSS {
 			if cvss.Score > vuln.CVSS {
 				vuln.CVSS = cvss.Score
+			}
+		}
+		
+		// If we still have no CVSS score, estimate based on severity
+		if vuln.CVSS == 0 {
+			switch vuln.Severity {
+			case "Critical":
+				vuln.CVSS = 9.0 // Estimate for critical
+			case "High":
+				vuln.CVSS = 7.5 // Estimate for high
+			case "Medium":
+				vuln.CVSS = 5.0 // Estimate for medium
+			case "Low":
+				vuln.CVSS = 2.5 // Estimate for low
+			case "Negligible":
+				vuln.CVSS = 0.5 // Estimate for negligible
 			}
 		}
 		

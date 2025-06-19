@@ -22,11 +22,12 @@ type position struct {
 }
 
 type obstacle struct {
-	pos      position
-	width    int
-	speed    float64
-	cveID    string
-	severity float64
+	pos           position
+	width         int
+	speed         float64
+	cveID         string
+	severity      float64
+	severityLabel string
 }
 
 type Model struct {
@@ -68,10 +69,15 @@ type lane struct {
 }
 
 func NewModel(vulnSource grype.VulnerabilitySource) *Model {
+	loadingMsg := "Loading vulnerabilities..."
+	if scanner, ok := vulnSource.(*grype.ScannerSource); ok {
+		loadingMsg = fmt.Sprintf("Scanning %s for vulnerabilities...", scanner.Image)
+	}
+	
 	return &Model{
 		vulnSource:   vulnSource,
 		state:        stateLoading,
-		loadingMsg:   "Loading vulnerabilities...",
+		loadingMsg:   loadingMsg,
 		lives:        3,
 		width:        80,
 		height:       24,
@@ -84,6 +90,7 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.loadVulnerabilities(),
 		tea.EnterAltScreen,
+		m.tick(), // Start ticking immediately for spinner animation
 	)
 }
 
@@ -106,8 +113,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	
 	case tickMsg:
-		if m.state == statePlaying {
+		switch m.state {
+		case statePlaying:
 			return m.updateGame(), m.tick()
+		case stateLoading:
+			// Keep ticking during loading to animate spinner
+			return m, m.tick()
 		}
 		return m, nil
 	}

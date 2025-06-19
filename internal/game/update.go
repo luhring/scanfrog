@@ -78,11 +78,12 @@ func (m Model) startGame(vulns []grype.Vulnerability) Model {
 		y: m.height - 3,
 	}
 	
-	// Initialize lanes
+	// Initialize lanes - start much closer to the frog
 	m.lanes = make([]lane, 0, 10)
-	for i := 2; i < m.height-3 && i < 12; i++ {
+	startLane := m.height - 6 // Start lanes just 3 rows above the frog
+	for i := 0; i < 10 && startLane-i > 2; i++ {
 		m.lanes = append(m.lanes, lane{
-			y:         i,
+			y:         startLane - i,
 			direction: 1 - 2*(i%2), // Alternate directions
 			speed:     0.5 + float64(i%3)*0.3,
 		})
@@ -142,6 +143,7 @@ func (m *Model) generateObstacles(vulns []grype.Vulnerability) {
 			speed:    lane.speed * speedMultiplier * float64(lane.direction),
 			cveID:    vuln.ID,
 			severity: vuln.CVSS,
+			severityLabel: vuln.Severity,
 		})
 	}
 }
@@ -188,13 +190,19 @@ func (m Model) checkCollision(frog position, obs obstacle) bool {
 }
 
 func formatCollisionMessage(obs obstacle) string {
-	severity := "LOW"
-	if obs.severity >= 9.0 {
-		severity = "CRITICAL"
-	} else if obs.severity >= 7.0 {
-		severity = "HIGH"
-	} else if obs.severity >= 4.0 {
-		severity = "MEDIUM"
+	// Use the actual severity label from Grype
+	severity := obs.severityLabel
+	if severity == "" {
+		// Fallback to CVSS-based severity if label is missing
+		if obs.severity >= 9.0 {
+			severity = "Critical"
+		} else if obs.severity >= 7.0 {
+			severity = "High"
+		} else if obs.severity >= 4.0 {
+			severity = "Medium"
+		} else {
+			severity = "Low"
+		}
 	}
 	
 	return fmt.Sprintf("You were hit by %s (%s, CVSS %.1f). Game over!", 

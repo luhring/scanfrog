@@ -129,9 +129,9 @@ func (m Model) renderGame() string {
 		}
 	}
 	
-	// Draw frog
+	// Draw frog (we'll handle emoji rendering in the display loop)
 	if m.frog.y < len(board) && m.frog.x < m.width {
-		board[m.frog.y][m.frog.x] = '🐸'
+		board[m.frog.y][m.frog.x] = 'F' // Placeholder, will be replaced with emoji
 	}
 	
 	// Convert board to string with styling
@@ -148,7 +148,9 @@ func (m Model) renderGame() string {
 	
 	// Game board
 	for y, row := range board {
-		for x, cell := range row {
+		for x := 0; x < len(row); x++ {
+			cell := row[x]
+			
 			// Check if this position has an obstacle
 			var isObstacle bool
 			var obsSeverity float64
@@ -160,36 +162,37 @@ func (m Model) renderGame() string {
 				}
 			}
 			
+			// Check if we need to render an emoji at this position
+			skipNext := false
+			
 			// Apply styling
 			cellStr := string(cell)
-			if cell == '🐸' {
+			if cell == 'F' {
+				// Render frog emoji and mark to skip next cell
 				cellStr = frogStyle.Render("🐸")
+				skipNext = true
 			} else if isObstacle {
-				// Use better visual representations
+				// Always show emoji for obstacles, not the CVE text
 				if obsSeverity >= 9.0 {
-					if cell == '█' || cell == ' ' {
-						cellStr = bossStyle.Render("🦖") // T-Rex for critical
-					} else {
-						cellStr = bossStyle.Render(cellStr)
-					}
+					cellStr = bossStyle.Render("🦖") // T-Rex for critical
+					skipNext = true
 				} else if obsSeverity >= 7.0 {
-					if cell == '█' || cell == ' ' {
-						cellStr = truckStyle.Render("🚛") // Truck for high
-					} else {
-						cellStr = truckStyle.Render(cellStr)
-					}
+					cellStr = truckStyle.Render("🚛") // Truck for high
+					skipNext = true
 				} else {
-					if cell == '█' || cell == ' ' {
-						cellStr = carStyle.Render("🚗") // Car for medium/low
-					} else {
-						cellStr = carStyle.Render(cellStr)
-					}
+					cellStr = carStyle.Render("🚗") // Car for medium/low
+					skipNext = true
 				}
 			} else if cell == '─' {
 				cellStr = roadStyle.Render("━")
 			}
 			
 			output.WriteString(cellStr)
+			
+			// If we rendered an emoji, skip the next cell to account for double width
+			if skipNext && x < len(row)-1 {
+				x++
+			}
 		}
 		output.WriteString("\n")
 	}
