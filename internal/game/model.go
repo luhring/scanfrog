@@ -23,6 +23,7 @@ type position struct {
 
 type obstacle struct {
 	pos           position
+	floatX        float64 // Track precise position
 	width         int
 	speed         float64
 	cveID         string
@@ -33,30 +34,35 @@ type obstacle struct {
 type Model struct {
 	vulnSource grype.VulnerabilitySource
 	state      gameState
-	
+
 	// Loading state
 	loadingMsg string
-	
+
 	// Game state
-	frog       position
-	obstacles  []obstacle
-	lanes      []lane
-	score      int
-	lives      int
-	
+	frog      position
+	obstacles []obstacle
+	lanes     []lane
+	score     int
+	lives     int
+
 	// Wave management
 	currentWave  int
 	totalWaves   int
 	waveTimer    time.Time
 	waveDuration time.Duration
-	
+
+	// Victory tracking
+	gameStartTime  time.Time
+	totalVulns     int
+	containerImage string
+
 	// Game over state
 	collisionCVE string
 	collisionMsg string
-	
+
 	// Viewport
 	width, height int
-	
+
 	// Timing
 	lastUpdate time.Time
 	ticker     *time.Ticker
@@ -69,20 +75,23 @@ type lane struct {
 }
 
 func NewModel(vulnSource grype.VulnerabilitySource) *Model {
-	loadingMsg := "Loading vulnerabilities..."
+	loadingMsg := "Building obstacle course..."
+	containerImage := ""
 	if scanner, ok := vulnSource.(*grype.ScannerSource); ok {
-		loadingMsg = fmt.Sprintf("Scanning %s for vulnerabilities...", scanner.Image)
+		containerImage = scanner.Image
+		loadingMsg = fmt.Sprintf("Building obstacle course from %s...", scanner.Image)
 	}
-	
+
 	return &Model{
-		vulnSource:   vulnSource,
-		state:        stateLoading,
-		loadingMsg:   loadingMsg,
-		lives:        3,
-		width:        80,
-		height:       24,
-		lastUpdate:   time.Now(),
-		waveDuration: 15 * time.Second,
+		vulnSource:     vulnSource,
+		state:          stateLoading,
+		loadingMsg:     loadingMsg,
+		containerImage: containerImage,
+		lives:          3,
+		width:          80,
+		height:         24,
+		lastUpdate:     time.Now(),
+		waveDuration:   15 * time.Second,
 	}
 }
 
@@ -98,20 +107,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
-	
+
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
+		// Only update if we get valid dimensions
+		if msg.Width > 0 && msg.Height > 0 {
+			m.width = msg.Width
+			m.height = msg.Height
+		}
 		return m, nil
-	
+
 	case vulnerabilitiesLoadedMsg:
 		return m.startGame(msg.vulns), m.tick()
-	
+
 	case vulnerabilityErrorMsg:
 		m.state = stateGameOver
 		m.collisionMsg = fmt.Sprintf("Failed to load vulnerabilities: %v", msg.err)
 		return m, tea.Quit
-	
+
 	case tickMsg:
 		switch m.state {
 		case statePlaying:
@@ -122,7 +134,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	
+
 	return m, nil
 }
 
@@ -162,7 +174,8 @@ func (m Model) loadVulnerabilities() tea.Cmd {
 }
 
 func (m Model) tick() tea.Cmd {
-	return tea.Tick(time.Second/30, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second/60, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
+
