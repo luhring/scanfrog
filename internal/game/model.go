@@ -66,6 +66,20 @@ type Model struct {
 	// Timing
 	lastUpdate time.Time
 	ticker     *time.Ticker
+
+	// Hint display
+	hasMoved        bool
+	firstMoveTime   time.Time
+	isZeroVulnGame  bool
+	decorativeItems []decorativeItem
+}
+
+type decorativeItem struct {
+	x, y   int
+	symbol string
+	floatX float64
+	floatY float64
+	speed  float64
 }
 
 type lane struct {

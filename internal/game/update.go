@@ -38,20 +38,36 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "up", "w":
 		if m.frog.y > 0 {
 			m.frog.y--
+			if !m.hasMoved {
+				m.hasMoved = true
+				m.firstMoveTime = time.Now()
+			}
 		}
 	case "down", "s":
 		// Account for header (2 lines)
 		gameHeight := m.height - 2
 		if m.frog.y < gameHeight-1 {
 			m.frog.y++
+			if !m.hasMoved {
+				m.hasMoved = true
+				m.firstMoveTime = time.Now()
+			}
 		}
 	case "left", "a":
 		if m.frog.x > 0 {
 			m.frog.x--
+			if !m.hasMoved {
+				m.hasMoved = true
+				m.firstMoveTime = time.Now()
+			}
 		}
 	case "right", "d":
 		if m.frog.x < m.width-1 {
 			m.frog.x++
+			if !m.hasMoved {
+				m.hasMoved = true
+				m.firstMoveTime = time.Now()
+			}
 		}
 	}
 
@@ -66,6 +82,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		gameHeight := m.height - 2
 		m.frog = position{x: m.width / 2, y: gameHeight - 1}
 		m.waveTimer = time.Now()
+		// Reset movement tracking for new wave
+		m.hasMoved = false
 	}
 
 	return m, nil
@@ -104,6 +122,12 @@ func (m Model) startGame(vulns []grype.Vulnerability) Model {
 
 	// Generate initial obstacles
 	m.generateObstacles(vulns)
+
+	// Check if this is a zero-vulnerability game
+	if len(vulns) == 0 {
+		m.isZeroVulnGame = true
+		m.initializeDecorativeItems()
+	}
 
 	return m
 }
@@ -203,6 +227,28 @@ func (m Model) updateGame() Model {
 		}
 	}
 
+	// Update decorative items for zero-vuln games
+	if m.isZeroVulnGame {
+		for i := range m.decorativeItems {
+			// Gentle horizontal floating
+			m.decorativeItems[i].floatX += m.decorativeItems[i].speed * delta * 10.0
+			
+			// Add a subtle vertical bobbing effect
+			bobAmount := math.Sin(float64(now.UnixMilli())/1000.0 + float64(i)) * 0.5
+			m.decorativeItems[i].floatY += bobAmount * delta
+			
+			// Update integer positions
+			m.decorativeItems[i].x = int(m.decorativeItems[i].floatX)
+			m.decorativeItems[i].y = int(m.decorativeItems[i].floatY)
+			
+			// Wrap around screen horizontally
+			if m.decorativeItems[i].x > m.width+2 {
+				m.decorativeItems[i].floatX = -2.0
+				m.decorativeItems[i].x = -2
+			}
+		}
+	}
+
 	// Check collisions
 	for _, obs := range m.obstacles {
 		if m.checkCollision(m.frog, obs) {
@@ -248,4 +294,32 @@ func formatCollisionMessage(obs obstacle) string {
 	}
 	return fmt.Sprintf("You were hit by %s (%s). Game over!",
 		obs.cveID, severity)
+}
+
+func (m *Model) initializeDecorativeItems() {
+	m.decorativeItems = nil
+	
+	// Create about 10-15 floating hearts and stars
+	symbols := []string{"💚", "✨", "💚", "⭐", "💚", "✨"}
+	gameHeight := m.height - 2
+	
+	for i := 0; i < 12; i++ {
+		// Distribute across the screen, avoiding the frog's starting position
+		x := (i * m.width / 12) + (i % 3) - 1
+		y := 2 + (i % (gameHeight - 4)) // Keep away from finish line and bottom
+		
+		// Don't place on the frog's starting position
+		if y == m.frog.y && x >= m.frog.x-2 && x <= m.frog.x+2 {
+			y = (y + 3) % (gameHeight - 2)
+		}
+		
+		m.decorativeItems = append(m.decorativeItems, decorativeItem{
+			x:      x,
+			y:      y,
+			symbol: symbols[i%len(symbols)],
+			floatX: float64(x),
+			floatY: float64(y),
+			speed:  0.3 + float64(i%3)*0.2, // Gentle floating speed
+		})
+	}
 }

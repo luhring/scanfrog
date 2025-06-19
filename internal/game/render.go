@@ -61,6 +61,12 @@ var (
 		}).
 		Bold(true)
 
+	separatorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{
+			Light: "#BDBDBD", // Light gray for light terminals
+			Dark:  "#424242", // Dark gray for dark terminals
+		})
+
 	loadingStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{
 			Light: "#1976D2", // Dark blue for light terminals
@@ -88,6 +94,20 @@ var (
 		Align(lipgloss.Center, lipgloss.Center).
 		Border(lipgloss.DoubleBorder()).
 		Padding(2, 4)
+
+	hintStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{
+			Light: "#757575", // Medium gray for light terminals
+			Dark:  "#9E9E9E", // Light gray for dark terminals
+		}).
+		Faint(true).
+		Align(lipgloss.Center)
+
+	decorativeStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{
+			Light: "#4CAF50", // Green for light terminals
+			Dark:  "#81C784", // Light green for dark terminals
+		})
 )
 
 func (m Model) renderLoading() string {
@@ -175,6 +195,15 @@ func (m Model) renderGame() string {
 		}
 	}
 
+	// Draw decorative items for zero-vuln games
+	if m.isZeroVulnGame {
+		for _, item := range m.decorativeItems {
+			if item.y >= 0 && item.y < len(board) && item.x >= 0 && item.x < m.width {
+				board[item.y][item.x] = 'D' // Placeholder for decorative item
+			}
+		}
+	}
+
 	// Draw frog (we'll handle emoji rendering in the display loop)
 	if m.frog.y < len(board) && m.frog.x < m.width {
 		board[m.frog.y][m.frog.x] = 'F' // Placeholder, will be replaced with emoji
@@ -189,7 +218,7 @@ func (m Model) renderGame() string {
 	output.WriteString(scoreStyle.Render(header))
 	output.WriteString("\n")
 	separator := strings.Repeat("═", m.width)
-	output.WriteString(scoreStyle.Render(separator))
+	output.WriteString(separatorStyle.Render(separator))
 	output.WriteString("\n")
 
 	// Finish line at the top - draw it as part of the first row
@@ -197,6 +226,25 @@ func (m Model) renderGame() string {
 
 	// Game board
 	for y, row := range board {
+		// Check if we should show hint on this row (2 rows below finish line)
+		if y == 2 && (!m.hasMoved || time.Since(m.firstMoveTime) < time.Second) {
+			var hintText string
+			if m.isZeroVulnGame {
+				hintText = "Ahhh, so peaceful! (And boring!) Proceed to the finish line to win!"
+			} else {
+				hintText = "Make it to the finish line without getting hit by anything!"
+			}
+			// Render the hint text centered
+			hintStyled := hintStyle.Width(m.width).Render(hintText)
+			output.WriteString(hintStyled)
+			// Only add newline if not the last row
+			if y < len(board)-1 {
+				output.WriteString("\n")
+			}
+			continue // Skip normal row rendering for hint row
+		}
+
+		// Normal row rendering
 		for x := 0; x < len(row); x++ {
 			cell := row[x]
 
@@ -213,6 +261,19 @@ func (m Model) renderGame() string {
 				}
 			}
 
+			// Check if this position has a decorative item
+			var isDecorativeItem bool
+			var decorativeSymbol string
+			if m.isZeroVulnGame {
+				for _, item := range m.decorativeItems {
+					if item.y == y && item.x == x {
+						isDecorativeItem = true
+						decorativeSymbol = item.symbol
+						break
+					}
+				}
+			}
+
 			// Check if we need to render an emoji at this position
 			skipNext := false
 
@@ -221,6 +282,9 @@ func (m Model) renderGame() string {
 			if cell == 'F' && m.frog.y == y && m.frog.x == x {
 				// Only render frog emoji at the actual frog position
 				cellStr = frogStyle.Render("🐸")
+				skipNext = true
+			} else if isDecorativeItem {
+				cellStr = decorativeStyle.Render(decorativeSymbol)
 				skipNext = true
 			} else if isObstacle {
 				// Always show emoji for obstacles, not the CVE text
@@ -262,7 +326,10 @@ func (m Model) renderGame() string {
 				x++
 			}
 		}
-		output.WriteString("\n")
+		// Only add newline if not the last row
+		if y < len(board)-1 {
+			output.WriteString("\n")
+		}
 	}
 
 	return output.String()

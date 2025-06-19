@@ -22,6 +22,12 @@ Additional context available in @./README.md, and additional guidance for contri
   - Medium/Low/Negligible → Car emoji 🚗 (normal size/speed)
 - **Wave System**: Large vulnerability sets (>50) are split into waves
 - **Difficulty Scaling**: Based on actual vulnerability severity, not artificially inflated
+- **Hint System**: 
+  - Shows contextual hints 2 rows below the finish line
+  - Normal game: "Make it to the finish line without getting hit by anything!"
+  - Zero-vuln game: "Ahhh, so peaceful! (And boring!) Proceed to the finish line to win!"
+  - Hints disappear 1 second after the player first moves
+- **Zero-Vulnerability Games**: Display floating hearts (💚) and stars (✨/⭐) for visual interest
 
 ## Development Patterns
 
