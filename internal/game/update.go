@@ -15,15 +15,9 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "q", "esc", "ctrl+c":
 			return m, tea.Quit
 		case "enter", " ":
-			if m.state == stateGameOver {
-				return m, tea.Quit
-			} else if m.state == stateVictory {
-				// Restart the game
-				newModel := NewModel(m.vulnSource)
-				// Preserve the current window dimensions
-				newModel.width = m.width
-				newModel.height = m.height
-				return newModel, newModel.Init()
+			if m.state == stateGameOver || m.state == stateVictory {
+				// Restart the game using cached vulnerabilities
+				return m.restartGame()
 			}
 		}
 		return m, nil
@@ -132,6 +126,59 @@ func (m Model) startGame(vulns []grype.Vulnerability) Model {
 	return m
 }
 
+// obstacleType represents the type of obstacle based on severity
+type obstacleType int
+
+const (
+	obstacleTypeCar obstacleType = iota
+	obstacleTypeTruck
+	obstacleTypeBoss
+)
+
+// getObstacleProperties determines the properties of an obstacle based on vulnerability severity
+func getObstacleProperties(vuln grype.Vulnerability) (width int, speedMultiplier float64, obsType obstacleType) {
+	// Default values
+	width = 1
+	speedMultiplier = 1.0
+	obsType = obstacleTypeCar
+
+	// First try CVSS score if available
+	if vuln.CVSS > 0 {
+		switch {
+		case vuln.CVSS >= 9.0:
+			width = 2 // Boss/T-Rex
+			speedMultiplier = 1.5
+			obsType = obstacleTypeBoss
+		case vuln.CVSS >= 7.0:
+			width = 2 // Truck
+			speedMultiplier = 1.2
+			obsType = obstacleTypeTruck
+		case vuln.CVSS >= 4.0:
+			speedMultiplier = 1.3 // Faster car
+		}
+		return
+	}
+
+	// Fall back to severity label when no CVSS
+	switch vuln.Severity {
+	case "Critical":
+		width = 2
+		speedMultiplier = 1.5
+		obsType = obstacleTypeBoss
+	case "High":
+		width = 2
+		speedMultiplier = 1.2
+		obsType = obstacleTypeTruck
+	case "Medium":
+		speedMultiplier = 1.3
+	case "Low":
+		speedMultiplier = 1.0
+	case "Negligible":
+		speedMultiplier = 0.8
+	}
+	return
+}
+
 func (m *Model) generateObstacles(vulns []grype.Vulnerability) {
 	m.obstacles = nil
 
@@ -150,37 +197,7 @@ func (m *Model) generateObstacles(vulns []grype.Vulnerability) {
 		lane := m.lanes[laneIdx]
 
 		// Determine obstacle properties based on severity
-		width := 1
-		speedMultiplier := 1.0
-
-		// First try CVSS score if available
-		if vuln.CVSS > 0 {
-			if vuln.CVSS >= 9.0 {
-				width = 2 // Boss/alligator
-				speedMultiplier = 1.5
-			} else if vuln.CVSS >= 7.0 {
-				width = 2 // Truck
-				speedMultiplier = 1.2
-			} else if vuln.CVSS >= 4.0 {
-				speedMultiplier = 1.3 // Faster car
-			}
-		} else {
-			// Fall back to severity label when no CVSS
-			switch vuln.Severity {
-			case "Critical":
-				width = 2
-				speedMultiplier = 1.5
-			case "High":
-				width = 2
-				speedMultiplier = 1.2
-			case "Medium":
-				speedMultiplier = 1.3
-			case "Low":
-				speedMultiplier = 1.0
-			case "Negligible":
-				speedMultiplier = 0.8
-			}
-		}
+		width, speedMultiplier, _ := getObstacleProperties(vuln)
 
 		// Space obstacles out more evenly across the screen
 		xOffset := (i / len(m.lanes)) * 20
@@ -232,15 +249,15 @@ func (m Model) updateGame() Model {
 		for i := range m.decorativeItems {
 			// Gentle horizontal floating
 			m.decorativeItems[i].floatX += m.decorativeItems[i].speed * delta * 10.0
-			
+
 			// Add a subtle vertical bobbing effect
-			bobAmount := math.Sin(float64(now.UnixMilli())/1000.0 + float64(i)) * 0.5
+			bobAmount := math.Sin(float64(now.UnixMilli())/1000.0+float64(i)) * 0.5
 			m.decorativeItems[i].floatY += bobAmount * delta
-			
+
 			// Update integer positions
 			m.decorativeItems[i].x = int(m.decorativeItems[i].floatX)
 			m.decorativeItems[i].y = int(m.decorativeItems[i].floatY)
-			
+
 			// Wrap around screen horizontally
 			if m.decorativeItems[i].x > m.width+2 {
 				m.decorativeItems[i].floatX = -2.0
@@ -276,13 +293,14 @@ func formatCollisionMessage(obs obstacle) string {
 	severity := obs.severityLabel
 	if severity == "" {
 		// Fallback to CVSS-based severity if label is missing
-		if obs.severity >= 9.0 {
+		switch {
+		case obs.severity >= 9.0:
 			severity = "Critical"
-		} else if obs.severity >= 7.0 {
+		case obs.severity >= 7.0:
 			severity = "High"
-		} else if obs.severity >= 4.0 {
+		case obs.severity >= 4.0:
 			severity = "Medium"
-		} else {
+		default:
 			severity = "Low"
 		}
 	}
@@ -298,21 +316,21 @@ func formatCollisionMessage(obs obstacle) string {
 
 func (m *Model) initializeDecorativeItems() {
 	m.decorativeItems = nil
-	
+
 	// Create about 10-15 floating hearts and stars
 	symbols := []string{"💚", "✨", "💚", "⭐", "💚", "✨"}
 	gameHeight := m.height - 2
-	
+
 	for i := 0; i < 12; i++ {
 		// Distribute across the screen, avoiding the frog's starting position
 		x := (i * m.width / 12) + (i % 3) - 1
 		y := 2 + (i % (gameHeight - 4)) // Keep away from finish line and bottom
-		
+
 		// Don't place on the frog's starting position
 		if y == m.frog.y && x >= m.frog.x-2 && x <= m.frog.x+2 {
 			y = (y + 3) % (gameHeight - 2)
 		}
-		
+
 		m.decorativeItems = append(m.decorativeItems, decorativeItem{
 			x:      x,
 			y:      y,

@@ -1,7 +1,9 @@
+// Package grype provides interfaces and implementations for vulnerability scanning using the Grype tool.
 package grype
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,8 +23,8 @@ type Vulnerability struct {
 	Description string  `json:"description"`
 }
 
-// GrypeOutput represents the JSON structure from Grype
-type GrypeOutput struct {
+// Output represents the JSON structure from Grype
+type Output struct {
 	Matches []Match `json:"matches"`
 }
 
@@ -70,7 +72,8 @@ func (s *ScannerSource) GetVulnerabilities() ([]Vulnerability, error) {
 	output, err := cmd.Output()
 	if err != nil {
 		// If it's an exec error, try to get stderr for better error message
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			return nil, fmt.Errorf("grype failed: %s", exitErr.Stderr)
 		}
 		return nil, fmt.Errorf("failed to run grype: %w", err)
@@ -95,7 +98,7 @@ func (f *FileSource) GetVulnerabilities() ([]Vulnerability, error) {
 }
 
 func parseGrypeOutput(data []byte) ([]Vulnerability, error) {
-	var output GrypeOutput
+	var output Output
 	if err := json.Unmarshal(data, &output); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}

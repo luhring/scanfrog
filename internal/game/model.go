@@ -31,6 +31,7 @@ type obstacle struct {
 	severityLabel string
 }
 
+// Model represents the main game state and handles all game logic for the Scanfrog terminal game.
 type Model struct {
 	vulnSource grype.VulnerabilitySource
 	state      gameState
@@ -42,7 +43,6 @@ type Model struct {
 	frog      position
 	obstacles []obstacle
 	lanes     []lane
-	score     int
 	lives     int
 
 	// Wave management
@@ -65,13 +65,15 @@ type Model struct {
 
 	// Timing
 	lastUpdate time.Time
-	ticker     *time.Ticker
 
 	// Hint display
 	hasMoved        bool
 	firstMoveTime   time.Time
 	isZeroVulnGame  bool
 	decorativeItems []decorativeItem
+
+	// Cached vulnerability data
+	loadedVulns []grype.Vulnerability
 }
 
 type decorativeItem struct {
@@ -88,6 +90,7 @@ type lane struct {
 	speed     float64
 }
 
+// NewModel creates a new game model with the specified vulnerability source.
 func NewModel(vulnSource grype.VulnerabilitySource) *Model {
 	loadingMsg := "Building obstacle course..."
 	containerImage := ""
@@ -109,6 +112,7 @@ func NewModel(vulnSource grype.VulnerabilitySource) *Model {
 	}
 }
 
+// Init initializes the game model and returns commands to load vulnerabilities and set up the terminal.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.loadVulnerabilities(),
@@ -117,6 +121,7 @@ func (m Model) Init() tea.Cmd {
 	)
 }
 
+// Update processes incoming messages and updates the game state accordingly.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -131,6 +136,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case vulnerabilitiesLoadedMsg:
+		m.loadedVulns = msg.vulns
 		return m.startGame(msg.vulns), m.tick()
 
 	case vulnerabilityErrorMsg:
@@ -152,6 +158,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View renders the current game state as a string for display.
 func (m Model) View() string {
 	switch m.state {
 	case stateLoading:
@@ -191,4 +198,20 @@ func (m Model) tick() tea.Cmd {
 	return tea.Tick(time.Second/60, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
+}
+
+func (m Model) restartGame() (tea.Model, tea.Cmd) {
+	// Reset game state while keeping loaded vulnerabilities
+	m.state = statePlaying
+	m.currentWave = 0
+	m.lives = 3
+	m.hasMoved = false
+	m.collisionCVE = ""
+	m.collisionMsg = ""
+	m.decorativeItems = nil
+	m.isZeroVulnGame = false
+	m.lastUpdate = time.Now()
+
+	// Restart with cached vulnerabilities
+	return m.startGame(m.loadedVulns), m.tick()
 }

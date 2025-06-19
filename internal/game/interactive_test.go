@@ -73,21 +73,21 @@ func TestKeyboardInputs(t *testing.T) {
 		{
 			name: "arrow key up",
 			key:  tea.KeyMsg{Type: tea.KeyUp},
-			validate: func(t *testing.T, m Model) {
+			validate: func(_ *testing.T, _ Model) {
 				// Frog should move up
 			},
 		},
 		{
 			name: "WASD key W",
 			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}},
-			validate: func(t *testing.T, m Model) {
+			validate: func(_ *testing.T, _ Model) {
 				// Frog should move up
 			},
 		},
 		{
 			name: "quit with q",
 			key:  tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}},
-			validate: func(t *testing.T, m Model) {
+			validate: func(_ *testing.T, _ Model) {
 				// Game should signal quit
 			},
 		},

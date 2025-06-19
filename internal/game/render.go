@@ -288,30 +288,8 @@ func (m Model) renderGame() string {
 				skipNext = true
 			} else if isObstacle {
 				// Always show emoji for obstacles, not the CVE text
-				// First check CVSS score if available
-				if obsSeverity >= 9.0 {
-					cellStr = bossStyle.Render("🦖") // T-Rex for critical
-					skipNext = true
-				} else if obsSeverity >= 7.0 {
-					cellStr = truckStyle.Render("🚛") // Truck for high
-					skipNext = true
-				} else if obsSeverity > 0 {
-					cellStr = carStyle.Render("🚗") // Car for medium/low with CVSS
-					skipNext = true
-				} else {
-					// Fall back to severity label when no CVSS
-					switch obsSeverityLabel {
-					case "Critical":
-						cellStr = bossStyle.Render("🦖")
-						skipNext = true
-					case "High":
-						cellStr = truckStyle.Render("🚛")
-						skipNext = true
-					default:
-						cellStr = carStyle.Render("🚗")
-						skipNext = true
-					}
-				}
+				cellStr = m.getObstacleEmoji(obsSeverity, obsSeverityLabel)
+				skipNext = true
 			} else if cell == '─' {
 				cellStr = roadStyle.Render("━")
 			} else if y == 0 {
@@ -336,7 +314,7 @@ func (m Model) renderGame() string {
 }
 
 func (m Model) renderGameOver() string {
-	content := fmt.Sprintf("GAME OVER\n\n%s\n\nPress ESC or Q to quit", m.collisionMsg)
+	content := fmt.Sprintf("GAME OVER\n\n%s\n\nPress ENTER to try again\nPress Q to quit", m.collisionMsg)
 	// Account for border (2) and padding (4 horizontal, 4 vertical) in total dimensions
 	// The Width/Height in lipgloss is the total box size including border
 	boxWidth := m.width - 2   // Leave some margin
@@ -382,4 +360,29 @@ func (m Model) renderVictory() string {
 		boxHeight = 15 // Victory screen needs more height
 	}
 	return victoryStyle.Width(boxWidth).Height(boxHeight).Render(content.String())
+}
+
+// getObstacleEmoji returns the appropriate emoji for an obstacle based on its severity
+func (m Model) getObstacleEmoji(cvssScore float64, severityLabel string) string {
+	// First check CVSS score if available
+	if cvssScore > 0 {
+		switch {
+		case cvssScore >= 9.0:
+			return bossStyle.Render("🦖") // T-Rex for critical
+		case cvssScore >= 7.0:
+			return truckStyle.Render("🚛") // Truck for high
+		default:
+			return carStyle.Render("🚗") // Car for medium/low with CVSS
+		}
+	}
+
+	// Fall back to severity label when no CVSS
+	switch severityLabel {
+	case "Critical":
+		return bossStyle.Render("🦖")
+	case "High":
+		return truckStyle.Render("🚛")
+	default:
+		return carStyle.Render("🚗")
+	}
 }
