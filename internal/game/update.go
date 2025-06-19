@@ -179,45 +179,46 @@ func getObstacleProperties(vuln grype.Vulnerability) (width int, speedMultiplier
 
 func (m *Model) generateObstacles(vulns []grype.Vulnerability) {
 	m.obstacles = nil
-	
+
 	numLanes := len(m.lanes)
 	if numLanes == 0 {
 		return
 	}
-	
+
 	// Each vulnerability becomes exactly one obstacle
 	for i, vuln := range vulns {
 		laneIdx := i % numLanes
 		lane := m.lanes[laneIdx]
-		
+
 		// Get obstacle properties
 		width, speedMultiplier, _ := getObstacleProperties(vuln)
-		
+
 		// For 471 vulnerabilities across 8 lanes, we get ~59 per lane
 		// We need to pack them tightly to see many on screen at once
 		obstacleIndexInLane := i / numLanes
-		
+
 		// Use very tight spacing for high vulnerability counts
 		var spacing float64
-		if len(vulns) > 200 {
-			spacing = 8.0  // Minimum comfortable spacing
-		} else if len(vulns) > 100 {
+		switch {
+		case len(vulns) > 200:
+			spacing = 8.0 // Minimum comfortable spacing
+		case len(vulns) > 100:
 			spacing = 12.0
-		} else {
+		default:
 			spacing = 20.0
 		}
-		
+
 		// Position based on index with some randomness
 		baseX := float64(obstacleIndexInLane) * spacing
-		
+
 		// Add lane-specific offset to stagger
 		laneOffset := float64(laneIdx) * 2.0
-		
+
 		// Small random variation
 		variation := float64(i%7-3) * 0.5
-		
+
 		x := baseX + laneOffset + variation
-		
+
 		// CRITICAL: Wrap positions to create a continuous loop
 		// This ensures consistent density regardless of screen width
 		loopLength := float64(len(vulns)/numLanes) * spacing
@@ -225,17 +226,17 @@ func (m *Model) generateObstacles(vulns []grype.Vulnerability) {
 		if x < 0 {
 			x += loopLength
 		}
-		
+
 		// Start positions distributed around the loop
 		var startX int
 		if lane.direction > 0 {
 			// Moving right: distribute from left
 			startX = int(x) - int(loopLength)/2
 		} else {
-			// Moving left: distribute from right  
+			// Moving left: distribute from right
 			startX = int(x) + m.width - int(loopLength)/2
 		}
-		
+
 		m.obstacles = append(m.obstacles, obstacle{
 			pos: position{
 				x: startX,
