@@ -117,8 +117,8 @@ func (m Model) renderLoading() string {
 	return loadingStyle.Width(width).Height(height).Render(content)
 }
 
-func (m Model) renderGame() string {
-	// Create fixed-size game board
+// initializeBoard creates an empty game board
+func (m Model) initializeBoard() [][]rune {
 	board := make([][]rune, gameAreaHeight)
 	for i := range board {
 		board[i] = make([]rune, m.width)
@@ -126,8 +126,11 @@ func (m Model) renderGame() string {
 			board[i][j] = ' '
 		}
 	}
+	return board
+}
 
-	// Draw finish line at the top row (y=0)
+// drawFinishLine draws the finish line at the top of the board
+func (m Model) drawFinishLine(board [][]rune) {
 	// Use checkered pattern for better visibility
 	for x := 0; x < m.width; x++ {
 		if x%2 == 0 {
@@ -146,8 +149,10 @@ func (m Model) renderGame() string {
 			}
 		}
 	}
+}
 
-	// Draw lanes
+// drawLanes draws the road lanes on the board
+func (m Model) drawLanes(board [][]rune) {
 	for _, lane := range m.lanes {
 		if lane.y < len(board) {
 			for x := 0; x < m.width; x++ {
@@ -157,8 +162,10 @@ func (m Model) renderGame() string {
 			}
 		}
 	}
+}
 
-	// Draw obstacles
+// drawObstacles draws the obstacles on the board
+func (m Model) drawObstacles(board [][]rune) {
 	for _, obs := range m.obstacles {
 		if obs.pos.y < len(board) && obs.pos.x >= 0 && obs.pos.x < m.width {
 			// Truncate CVE ID to fit
@@ -178,8 +185,10 @@ func (m Model) renderGame() string {
 			}
 		}
 	}
+}
 
-	// Draw decorative items for zero-vuln games
+// drawDecorativeItems draws decorative items for zero-vuln games
+func (m Model) drawDecorativeItems(board [][]rune) {
 	if m.isZeroVulnGame {
 		for _, item := range m.decorativeItems {
 			if item.y >= 0 && item.y < len(board) && item.x >= 0 && item.x < m.width {
@@ -187,27 +196,18 @@ func (m Model) renderGame() string {
 			}
 		}
 	}
+}
 
-	// Draw frog (we'll handle emoji rendering in the display loop)
-	if m.frog.y < len(board) && m.frog.x < m.width {
-		board[m.frog.y][m.frog.x] = 'F' // Placeholder, will be replaced with emoji
-	}
-
-	// Convert board to string with styling
-	var output strings.Builder
-
-	// Calculate vertical centering
-	topMargin := 0
+// calculateTopMargin calculates the top margin for vertical centering
+func (m Model) calculateTopMargin() int {
 	if m.height > minTerminalHeight {
-		topMargin = (m.height - minTerminalHeight) / 2
+		return (m.height - minTerminalHeight) / 2
 	}
+	return 0
+}
 
-	// Add top margin
-	for i := 0; i < topMargin; i++ {
-		output.WriteString("\n")
-	}
-
-	// Modern header with image name and vulnerability count
+// renderHeader renders the game header with image name and vulnerability count
+func (m Model) renderHeader(output *strings.Builder) {
 	headerText := "scanfrog"
 	if m.containerImage != "" {
 		headerText = fmt.Sprintf("scanfrog • %s", m.containerImage)
@@ -220,104 +220,160 @@ func (m Model) renderGame() string {
 	separator := strings.Repeat("─", m.width)
 	output.WriteString(separatorStyle.Render(separator))
 	output.WriteString("\n")
+}
+
+// renderHintRow renders the special hint row (row 2)
+func (m Model) renderHintRow(row []rune, output *strings.Builder) {
+	switch {
+	case m.frog.y == 2:
+		// Normal row rendering for row 2 when frog is present
+		for x := 0; x < len(row); x++ {
+			cell := row[x]
+			cellStr := string(cell)
+			if cell == 'F' && m.frog.x == x {
+				cellStr = frogStyle.Render("🐸")
+				x++ // Skip next cell for emoji width
+			}
+			output.WriteString(cellStr)
+		}
+		output.WriteString("\n")
+	case !m.hasMoved || time.Since(m.firstMoveTime) < time.Second:
+		// Show hint text when frog is not on row 2
+		var hintText string
+		if m.isZeroVulnGame {
+			hintText = "Ahhh, so peaceful! (And boring!) Proceed to the finish line to win!"
+		} else {
+			hintText = "Make it to the finish line without getting hit by anything!"
+		}
+		hintStyled := hintStyle.Width(m.width).Render(hintText)
+		output.WriteString(hintStyled)
+		output.WriteString("\n")
+	default:
+		// No hint, no frog - just empty row
+		output.WriteString("\n")
+	}
+}
+
+// findObstacleAt finds an obstacle at the given position
+func (m Model) findObstacleAt(x, y int) (bool, float64, string) {
+	for _, obs := range m.obstacles {
+		if obs.pos.y == y && x >= obs.pos.x && x < obs.pos.x+obs.width {
+			return true, obs.severity, obs.severityLabel
+		}
+	}
+	return false, 0, ""
+}
+
+// findDecorativeItemAt finds a decorative item at the given position
+func (m Model) findDecorativeItemAt(x, y int) (bool, string) {
+	if m.isZeroVulnGame {
+		for _, item := range m.decorativeItems {
+			if item.y == y && item.x == x {
+				return true, item.symbol
+			}
+		}
+	}
+	return false, ""
+}
+
+// renderNormalRow renders a normal game board row
+func (m Model) renderNormalRow(row []rune, y int, output *strings.Builder) {
+	for x := 0; x < len(row); x++ {
+		cell := row[x]
+		cellStr := m.getCellDisplay(cell, x, y)
+		output.WriteString(cellStr)
+
+		// If we rendered an emoji, skip the next cell to account for double width
+		if m.shouldSkipNext(cell, x, y) && x < len(row)-1 {
+			x++
+		}
+	}
+}
+
+// getCellDisplay returns the styled string for a cell
+func (m Model) getCellDisplay(cell rune, x, y int) string {
+	// Check if frog is at this position
+	if cell == 'F' && m.frog.y == y && m.frog.x == x {
+		return frogStyle.Render("🐸")
+	}
+
+	// Check for decorative item
+	if isDecorativeItem, symbol := m.findDecorativeItemAt(x, y); isDecorativeItem {
+		return decorativeStyle.Render(symbol)
+	}
+
+	// Check for obstacle
+	if isObstacle, severity, severityLabel := m.findObstacleAt(x, y); isObstacle {
+		return m.getObstacleEmoji(severity, severityLabel)
+	}
+
+	// Apply other styling
+	switch {
+	case cell == '─':
+		return roadStyle.Render("━")
+	case y == 0:
+		// Apply finish line styling to the entire top row
+		return finishLineStyle.Render(string(cell))
+	default:
+		return string(cell)
+	}
+}
+
+// shouldSkipNext returns true if the next cell should be skipped (for emoji width)
+func (m Model) shouldSkipNext(cell rune, x, y int) bool {
+	// Check if frog is at this position
+	if cell == 'F' && m.frog.y == y && m.frog.x == x {
+		return true
+	}
+
+	// Check for decorative item
+	if isDecorativeItem, _ := m.findDecorativeItemAt(x, y); isDecorativeItem {
+		return true
+	}
+
+	// Check for obstacle
+	if isObstacle, _, _ := m.findObstacleAt(x, y); isObstacle {
+		return true
+	}
+
+	return false
+}
+
+func (m Model) renderGame() string {
+	// Create and populate the game board
+	board := m.initializeBoard()
+	m.drawFinishLine(board)
+	m.drawLanes(board)
+	m.drawObstacles(board)
+	m.drawDecorativeItems(board)
+
+	// Draw frog (we'll handle emoji rendering in the display loop)
+	if m.frog.y < len(board) && m.frog.x < m.width {
+		board[m.frog.y][m.frog.x] = 'F' // Placeholder, will be replaced with emoji
+	}
+
+	// Convert board to string with styling
+	var output strings.Builder
+
+	// Add top margin
+	topMargin := m.calculateTopMargin()
+	for i := 0; i < topMargin; i++ {
+		output.WriteString("\n")
+	}
+
+	// Render header
+	m.renderHeader(&output)
 
 	// Game board
 	for y, row := range board {
 		// Special handling for row 2 - hint area
 		if y == 2 {
-			// If frog is on row 2, render normally
-			if m.frog.y == 2 {
-				// Normal row rendering for row 2 when frog is present
-				for x := 0; x < len(row); x++ {
-					cell := row[x]
-					cellStr := string(cell)
-					if cell == 'F' && m.frog.x == x {
-						cellStr = frogStyle.Render("🐸")
-						x++ // Skip next cell for emoji width
-					}
-					output.WriteString(cellStr)
-				}
-				output.WriteString("\n") // Just one newline
-			} else if !m.hasMoved || time.Since(m.firstMoveTime) < time.Second {
-				// Show hint text when frog is not on row 2
-				var hintText string
-				if m.isZeroVulnGame {
-					hintText = "Ahhh, so peaceful! (And boring!) Proceed to the finish line to win!"
-				} else {
-					hintText = "Make it to the finish line without getting hit by anything!"
-				}
-				hintStyled := hintStyle.Width(m.width).Render(hintText)
-				output.WriteString(hintStyled)
-				output.WriteString("\n") // Just one newline
-			} else {
-				// No hint, no frog - just empty row
-				output.WriteString("\n") // Just one newline for the empty row
-			}
-
-			// Don't add an extra blank line - row 2 is the hint row itself
+			m.renderHintRow(row, &output)
 			continue
 		}
 
 		// Normal row rendering
-		for x := 0; x < len(row); x++ {
-			cell := row[x]
-
-			// Check if this position has an obstacle
-			var isObstacle bool
-			var obsSeverity float64
-			var obsSeverityLabel string
-			for _, obs := range m.obstacles {
-				if obs.pos.y == y && x >= obs.pos.x && x < obs.pos.x+obs.width {
-					isObstacle = true
-					obsSeverity = obs.severity
-					obsSeverityLabel = obs.severityLabel
-					break
-				}
-			}
-
-			// Check if this position has a decorative item
-			var isDecorativeItem bool
-			var decorativeSymbol string
-			if m.isZeroVulnGame {
-				for _, item := range m.decorativeItems {
-					if item.y == y && item.x == x {
-						isDecorativeItem = true
-						decorativeSymbol = item.symbol
-						break
-					}
-				}
-			}
-
-			// Check if we need to render an emoji at this position
-			skipNext := false
-
-			// Apply styling
-			cellStr := string(cell)
-			if cell == 'F' && m.frog.y == y && m.frog.x == x {
-				// Only render frog emoji at the actual frog position
-				cellStr = frogStyle.Render("🐸")
-				skipNext = true
-			} else if isDecorativeItem {
-				cellStr = decorativeStyle.Render(decorativeSymbol)
-				skipNext = true
-			} else if isObstacle {
-				// Always show emoji for obstacles, not the CVE text
-				cellStr = m.getObstacleEmoji(obsSeverity, obsSeverityLabel)
-				skipNext = true
-			} else if cell == '─' {
-				cellStr = roadStyle.Render("━")
-			} else if y == 0 {
-				// Apply finish line styling to the entire top row
-				cellStr = finishLineStyle.Render(string(cell))
-			}
-
-			output.WriteString(cellStr)
-
-			// If we rendered an emoji, skip the next cell to account for double width
-			if skipNext && x < len(row)-1 {
-				x++
-			}
-		}
+		m.renderNormalRow(row, y, &output)
 		// Only add newline if not the last row
 		if y < len(board)-1 {
 			output.WriteString("\n")

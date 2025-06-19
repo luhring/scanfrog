@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
+	"strings"
 )
 
 // VulnerabilitySource is an interface for getting vulnerabilities
@@ -68,6 +70,12 @@ type ScannerSource struct {
 
 // GetVulnerabilities runs Grype and returns vulnerabilities
 func (s *ScannerSource) GetVulnerabilities() ([]Vulnerability, error) {
+	// Validate the image name to prevent command injection
+	if err := validateImageName(s.Image); err != nil {
+		return nil, fmt.Errorf("invalid image name: %w", err)
+	}
+
+	// #nosec G204 -- Image name has been validated above to prevent command injection
 	cmd := exec.Command("grype", s.Image, "-o", "json", "-q")
 	output, err := cmd.Output()
 	if err != nil {
@@ -128,4 +136,31 @@ func parseGrypeOutput(data []byte) ([]Vulnerability, error) {
 	}
 
 	return vulns, nil
+}
+
+// validateImageName checks if the image name is safe to use in a command
+func validateImageName(image string) error {
+	if image == "" {
+		return fmt.Errorf("image name cannot be empty")
+	}
+
+	// Check for shell metacharacters that could be used for command injection
+	dangerousChars := []string{";", "&", "|", "`", "$", "(", ")", "{", "}", "[", "]", "<", ">", "\n", "\r", "\\"}
+	for _, char := range dangerousChars {
+		if strings.Contains(image, char) {
+			return fmt.Errorf("image name contains invalid character: %s", char)
+		}
+	}
+
+	// Additional validation: image names should follow Docker naming conventions
+	// They can contain lowercase letters, digits, underscores, periods, and dashes
+	// They can also have a registry prefix and tag suffix
+	// Examples: ubuntu:latest, docker.io/library/nginx:1.21, my-app:v1.0.0
+	// This regex allows for more complex image names while still being safe
+	validImageRegex := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-/:]*(:[a-zA-Z0-9._\-]+)?(@sha256:[a-f0-9]+)?$`)
+	if !validImageRegex.MatchString(image) {
+		return fmt.Errorf("image name contains invalid format")
+	}
+
+	return nil
 }

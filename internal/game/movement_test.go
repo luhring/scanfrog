@@ -517,11 +517,12 @@ func TestVisualRendering(t *testing.T) {
 	t.Log("Visual layout:")
 	for i, line := range lines {
 		marker := "  "
-		if i == finishLine {
+		switch {
+		case i == finishLine:
 			marker = "F "
-		} else if i == topRoadLine {
+		case i == topRoadLine:
 			marker = "R "
-		} else if strings.Contains(line, "━") {
+		case strings.Contains(line, "━"):
 			marker = "r "
 		}
 		t.Logf("%s Line %2d: %s", marker, i, line[:minInt(60, len(line))])
@@ -561,25 +562,26 @@ func TestActualRowCounting(t *testing.T) {
 	hintCount := 0
 
 	for i, line := range lines {
-		if strings.Contains(line, "scanfrog") {
+		switch {
+		case strings.Contains(line, "scanfrog"):
 			headerCount++
 			t.Logf("Line %d: HEADER", i)
-		} else if strings.Contains(line, "───") || strings.Contains(line, "─") && i == 1 {
+		case strings.Contains(line, "───") || strings.Contains(line, "─") && i == 1:
 			headerCount++ // separator
 			t.Logf("Line %d: SEPARATOR", i)
-		} else if strings.Contains(line, "FINISH") {
+		case strings.Contains(line, "FINISH"):
 			finishCount++
 			t.Logf("Line %d: FINISH", i)
-		} else if strings.Contains(line, "━") {
+		case strings.Contains(line, "━"):
 			roadCount++
 			t.Logf("Line %d: ROAD", i)
-		} else if strings.Contains(line, "Make it to the finish") {
+		case strings.Contains(line, "Make it to the finish"):
 			hintCount++
 			t.Logf("Line %d: HINT", i)
-		} else if strings.TrimSpace(line) == "" {
+		case strings.TrimSpace(line) == "":
 			emptyCount++
 			t.Logf("Line %d: EMPTY (blank)", i)
-		} else {
+		default:
 			emptyCount++
 			t.Logf("Line %d: EMPTY (with content: %s)", i, strings.TrimSpace(line)[:minInt(30, len(strings.TrimSpace(line)))])
 		}
