@@ -113,7 +113,7 @@ func (m Model) renderGame() string {
 	if gameHeight < 10 {
 		gameHeight = 10
 	}
-	
+
 	// Create game board
 	board := make([][]rune, gameHeight)
 	for i := range board {
@@ -273,7 +273,7 @@ func (m Model) renderGameOver() string {
 	// Account for border (2) and padding (4 horizontal, 4 vertical) in total dimensions
 	// The Width/Height in lipgloss is the total box size including border
 	boxWidth := m.width - 2   // Leave some margin
-	boxHeight := m.height - 2  // Leave some margin
+	boxHeight := m.height - 2 // Leave some margin
 	if boxWidth < 40 {
 		boxWidth = 40
 	}
@@ -307,7 +307,7 @@ func (m Model) renderVictory() string {
 	// Account for border (2) and padding (4 horizontal, 4 vertical) in total dimensions
 	// The Width/Height in lipgloss is the total box size including border
 	boxWidth := m.width - 2   // Leave some margin
-	boxHeight := m.height - 2  // Leave some margin
+	boxHeight := m.height - 2 // Leave some margin
 	if boxWidth < 40 {
 		boxWidth = 40
 	}
@@ -316,4 +316,3 @@ func (m Model) renderVictory() string {
 	}
 	return victoryStyle.Width(boxWidth).Height(boxHeight).Render(content.String())
 }
-

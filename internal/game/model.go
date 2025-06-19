@@ -178,4 +178,3 @@ func (m Model) tick() tea.Cmd {
 		return tickMsg(t)
 	})
 }
-

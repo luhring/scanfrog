@@ -249,4 +249,3 @@ func formatCollisionMessage(obs obstacle) string {
 	return fmt.Sprintf("You were hit by %s (%s). Game over!",
 		obs.cveID, severity)
 }
-

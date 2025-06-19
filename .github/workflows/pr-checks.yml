@@ -1,0 +1,191 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  # Quick checks that should fail fast
+  quick-checks:
+    name: Quick Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      
+      - name: Check formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Code is not formatted. Run 'make fmt'"
+            gofmt -d .
+            exit 1
+          fi
+      
+      - name: Run go vet
+        run: make vet
+      
+      - name: Check go mod tidy
+        run: make tidy
+
+  # Linting with golangci-lint
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+  # Build verification across platforms
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    needs: quick-checks
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.24.x']
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+      
+      - name: Build
+        run: go build -v ./cmd/scanfrog
+      
+      - name: Verify binary
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            ./scanfrog.exe --help
+          else
+            ./scanfrog --help
+          fi
+        shell: bash
+
+  # Run tests with coverage
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      
+      - name: Run tests with coverage
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+      
+      - name: Check minimum coverage
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: $COVERAGE%"
+          # For now, we require 40% coverage (will increase as we add more tests)
+          if (( $(echo "$COVERAGE < 40" | bc -l) )); then
+            echo "Coverage is below 40%. Please add more tests."
+            exit 1
+          fi
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # Security and compliance checks
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      
+      - name: Run gosec
+        uses: securego/gosec@master
+        with:
+          args: '-quiet -fmt sarif -out gosec-results.sarif ./...'
+      
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gosec-results.sarif
+      
+      - name: Run vulnerability check
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # Integration tests with sample data
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      
+      - name: Build binary
+        run: go build ./cmd/scanfrog
+      
+      - name: Run smoke test with sample data
+        run: |
+          timeout 10s ./scanfrog --json testdata/sample-vulns.json || EXIT_CODE=$?
+          # Exit code 124 means timeout (expected for a game)
+          if [ "${EXIT_CODE:-0}" -ne 0 ] && [ "${EXIT_CODE:-0}" -ne 124 ]; then
+            echo "Smoke test failed with exit code $EXIT_CODE"
+            exit 1
+          fi
+      
+      - name: Test help command
+        run: ./scanfrog --help
+      
+      - name: Test version command
+        run: ./scanfrog version || true
+
+  # All checks passed
+  all-checks:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [quick-checks, lint, build, test, security, integration]
+    steps:
+      - run: echo "All PR checks passed successfully!"

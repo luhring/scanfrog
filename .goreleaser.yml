@@ -1,0 +1,134 @@
+# GoReleaser configuration for Scanfrog
+# This handles multi-platform builds and GitHub releases
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: scanfrog
+    main: ./cmd/scanfrog
+    binary: scanfrog
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Skip unsupported combinations
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: scanfrog-archive
+    name_template: >-
+      scanfrog_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - testdata/sample-vulns.json
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^style:'
+      - '^refactor:'
+  groups:
+    - title: 'Features'
+      regexp: '^feat'
+    - title: 'Bug Fixes'
+      regexp: '^fix'
+    - title: 'Performance'
+      regexp: '^perf'
+    - title: 'Security'
+      regexp: '^security'
+
+release:
+  github:
+    owner: luhring
+    name: scanfrog
+  
+  # Release notes
+  header: |
+    ## Scanfrog {{ .Tag }}
+    
+    Scanfrog transforms container vulnerability scans into a fun Frogger-style game! 🐸
+    
+  footer: |
+    ## Installation
+    
+    ### Binary
+    Download the appropriate binary for your platform from the assets below.
+    
+    ### From Source
+    ```bash
+    go install github.com/luhring/scanfrog/cmd/scanfrog@{{ .Tag }}
+    ```
+    
+    ### Usage
+    ```bash
+    # Scan a container image (requires Grype)
+    scanfrog ubuntu:latest
+    
+    # Load from existing Grype output
+    scanfrog --json grype-output.json
+    ```
+    
+    **Full Changelog**: https://github.com/luhring/scanfrog/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+  # Prefer to release as draft first
+  draft: true
+  
+  # Create discussion for major releases
+  discussion_category_name: announcements
+
+# Future: Can add these sections when ready
+# brews:
+#   - repository:
+#       owner: luhring
+#       name: homebrew-tap
+#     folder: Formula
+#     homepage: https://github.com/luhring/scanfrog
+#     description: "Terminal game that visualizes container vulnerabilities"
+
+# dockers:
+#   - image_templates:
+#       - "ghcr.io/luhring/scanfrog:{{ .Tag }}"
+#       - "ghcr.io/luhring/scanfrog:latest"
+
+# nfpms:
+#   - formats:
+#       - deb
+#       - rpm
+#       - apk

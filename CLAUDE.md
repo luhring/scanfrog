@@ -4,7 +4,7 @@
 
 Scanfrog is a terminal-based Frogger game that visualizes container vulnerabilities. It transforms vulnerability scan results from [Grype](https://github.com/anchore/grype) into an engaging game where players dodge CVE "obstacles" to showcase how secure (or vulnerable) container images are.
 
-Additional context available in @./README.md.
+Additional context available in @./README.md, and additional guidance for contributors in @./CONTRIBUTING.md.
 
 ## Key Architecture Decisions
 

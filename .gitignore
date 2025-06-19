@@ -1,5 +1,6 @@
 # Binaries
 scanfrog
+dist/
 *.exe
 *.dll
 *.so
@@ -10,6 +11,7 @@ scanfrog
 
 # Output of the go coverage tool
 *.out
+coverage.html
 
 # Go workspace
 go.work

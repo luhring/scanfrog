@@ -34,9 +34,9 @@ type Match struct {
 
 // VulnerabilityInfo contains vulnerability details
 type VulnerabilityInfo struct {
-	ID          string   `json:"id"`
-	Severity    string   `json:"severity"`
-	Description string   `json:"description"`
+	ID          string     `json:"id"`
+	Severity    string     `json:"severity"`
+	Description string     `json:"description"`
 	CVSS        []CVSSInfo `json:"cvss"`
 }
 
@@ -75,7 +75,7 @@ func (s *ScannerSource) GetVulnerabilities() ([]Vulnerability, error) {
 		}
 		return nil, fmt.Errorf("failed to run grype: %w", err)
 	}
-	
+
 	return parseGrypeOutput(output)
 }
 
@@ -90,7 +90,7 @@ func (f *FileSource) GetVulnerabilities() ([]Vulnerability, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	
+
 	return parseGrypeOutput(data)
 }
 
@@ -99,7 +99,7 @@ func parseGrypeOutput(data []byte) ([]Vulnerability, error) {
 	if err := json.Unmarshal(data, &output); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
-	
+
 	vulns := make([]Vulnerability, 0, len(output.Matches))
 	for _, match := range output.Matches {
 		vuln := Vulnerability{
@@ -108,7 +108,7 @@ func parseGrypeOutput(data []byte) ([]Vulnerability, error) {
 			Package:     match.Artifact.Name,
 			Description: match.Vulnerability.Description,
 		}
-		
+
 		// Get highest CVSS score if available
 		for _, cvss := range match.Vulnerability.CVSS {
 			// Try to get score from either top level or metrics
@@ -120,9 +120,9 @@ func parseGrypeOutput(data []byte) ([]Vulnerability, error) {
 				vuln.CVSS = score
 			}
 		}
-		
+
 		vulns = append(vulns, vuln)
 	}
-	
+
 	return vulns, nil
 }
