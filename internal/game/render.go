@@ -203,10 +203,12 @@ func (m Model) renderGame() string {
 			// Check if this position has an obstacle
 			var isObstacle bool
 			var obsSeverity float64
+			var obsSeverityLabel string
 			for _, obs := range m.obstacles {
 				if obs.pos.y == y && x >= obs.pos.x && x < obs.pos.x+obs.width {
 					isObstacle = true
 					obsSeverity = obs.severity
+					obsSeverityLabel = obs.severityLabel
 					break
 				}
 			}
@@ -222,15 +224,29 @@ func (m Model) renderGame() string {
 				skipNext = true
 			} else if isObstacle {
 				// Always show emoji for obstacles, not the CVE text
+				// First check CVSS score if available
 				if obsSeverity >= 9.0 {
 					cellStr = bossStyle.Render("🦖") // T-Rex for critical
 					skipNext = true
 				} else if obsSeverity >= 7.0 {
 					cellStr = truckStyle.Render("🚛") // Truck for high
 					skipNext = true
-				} else {
-					cellStr = carStyle.Render("🚗") // Car for medium/low
+				} else if obsSeverity > 0 {
+					cellStr = carStyle.Render("🚗") // Car for medium/low with CVSS
 					skipNext = true
+				} else {
+					// Fall back to severity label when no CVSS
+					switch obsSeverityLabel {
+					case "Critical":
+						cellStr = bossStyle.Render("🦖")
+						skipNext = true
+					case "High":
+						cellStr = truckStyle.Render("🚛")
+						skipNext = true
+					default:
+						cellStr = carStyle.Render("🚗")
+						skipNext = true
+					}
 				}
 			} else if cell == '─' {
 				cellStr = roadStyle.Render("━")

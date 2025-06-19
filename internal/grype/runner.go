@@ -42,9 +42,15 @@ type VulnerabilityInfo struct {
 
 // CVSSInfo contains CVSS score information
 type CVSSInfo struct {
-	Source string `json:"source"`
-	Type   string `json:"type"`
-	Score  float64 `json:"baseScore"`
+	Source  string      `json:"source"`
+	Type    string      `json:"type"`
+	Score   float64     `json:"baseScore"`
+	Metrics CVSSMetrics `json:"metrics"`
+}
+
+// CVSSMetrics contains nested CVSS metrics
+type CVSSMetrics struct {
+	BaseScore float64 `json:"baseScore"`
 }
 
 // ArtifactInfo contains package information
@@ -103,26 +109,15 @@ func parseGrypeOutput(data []byte) ([]Vulnerability, error) {
 			Description: match.Vulnerability.Description,
 		}
 		
-		// Get highest CVSS score, preferring non-zero scores
+		// Get highest CVSS score if available
 		for _, cvss := range match.Vulnerability.CVSS {
-			if cvss.Score > vuln.CVSS {
-				vuln.CVSS = cvss.Score
+			// Try to get score from either top level or metrics
+			score := cvss.Score
+			if score == 0 && cvss.Metrics.BaseScore > 0 {
+				score = cvss.Metrics.BaseScore
 			}
-		}
-		
-		// If we still have no CVSS score, estimate based on severity
-		if vuln.CVSS == 0 {
-			switch vuln.Severity {
-			case "Critical":
-				vuln.CVSS = 9.0 // Estimate for critical
-			case "High":
-				vuln.CVSS = 7.5 // Estimate for high
-			case "Medium":
-				vuln.CVSS = 5.0 // Estimate for medium
-			case "Low":
-				vuln.CVSS = 2.5 // Estimate for low
-			case "Negligible":
-				vuln.CVSS = 0.5 // Estimate for negligible
+			if score > vuln.CVSS {
+				vuln.CVSS = score
 			}
 		}
 		

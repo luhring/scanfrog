@@ -129,14 +129,33 @@ func (m *Model) generateObstacles(vulns []grype.Vulnerability) {
 		width := 1
 		speedMultiplier := 1.0
 
-		if vuln.CVSS >= 9.0 {
-			width = 2 // Boss/alligator
-			speedMultiplier = 1.5
-		} else if vuln.CVSS >= 7.0 {
-			width = 2 // Truck
-			speedMultiplier = 1.2
-		} else if vuln.CVSS >= 4.0 {
-			speedMultiplier = 1.3 // Faster car
+		// First try CVSS score if available
+		if vuln.CVSS > 0 {
+			if vuln.CVSS >= 9.0 {
+				width = 2 // Boss/alligator
+				speedMultiplier = 1.5
+			} else if vuln.CVSS >= 7.0 {
+				width = 2 // Truck
+				speedMultiplier = 1.2
+			} else if vuln.CVSS >= 4.0 {
+				speedMultiplier = 1.3 // Faster car
+			}
+		} else {
+			// Fall back to severity label when no CVSS
+			switch vuln.Severity {
+			case "Critical":
+				width = 2
+				speedMultiplier = 1.5
+			case "High":
+				width = 2
+				speedMultiplier = 1.2
+			case "Medium":
+				speedMultiplier = 1.3
+			case "Low":
+				speedMultiplier = 1.0
+			case "Negligible":
+				speedMultiplier = 0.8
+			}
 		}
 
 		// Space obstacles out more evenly across the screen
@@ -222,7 +241,12 @@ func formatCollisionMessage(obs obstacle) string {
 		}
 	}
 
-	return fmt.Sprintf("You were hit by %s (%s, CVSS %.1f). Game over!",
-		obs.cveID, severity, obs.severity)
+	// Only show CVSS score if we actually have one
+	if obs.severity > 0 {
+		return fmt.Sprintf("You were hit by %s (%s, CVSS %.1f). Game over!",
+			obs.cveID, severity, obs.severity)
+	}
+	return fmt.Sprintf("You were hit by %s (%s). Game over!",
+		obs.cveID, severity)
 }
 
