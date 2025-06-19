@@ -247,7 +247,7 @@ func (m Model) renderGame() string {
 					}
 					output.WriteString(cellStr)
 				}
-				output.WriteString("\n\n") // Normal row + blank line
+				output.WriteString("\n") // Just one newline
 			} else if !m.hasMoved || time.Since(m.firstMoveTime) < time.Second {
 				// Show hint text when frog is not on row 2
 				var hintText string
@@ -258,11 +258,13 @@ func (m Model) renderGame() string {
 				}
 				hintStyled := hintStyle.Width(m.width).Render(hintText)
 				output.WriteString(hintStyled)
-				output.WriteString("\n\n") // Hint text + blank line
+				output.WriteString("\n") // Just one newline
 			} else {
-				// No hint, no frog - just empty space + blank line
-				output.WriteString("\n\n") // Empty row + blank line
+				// No hint, no frog - just empty row
+				output.WriteString("\n") // Just one newline for the empty row
 			}
+
+			// Don't add an extra blank line - row 2 is the hint row itself
 			continue
 		}
 

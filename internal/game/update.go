@@ -83,15 +83,31 @@ func (m Model) startGame(vulns []grype.Vulnerability) Model {
 		y: gameAreaHeight - 1,
 	}
 
-	// Initialize lanes - tighter spacing for fixed height
+	// Initialize lanes with proper spacing
+	// We want lanes at: 18, 16, 14, 12, 10, 8, 6, 4
+	// This gives us:
+	// - Row 19: frog start position (empty)
+	// - Row 18: road lane (bottom)
+	// - Row 17: empty
+	// - Row 16: road lane
+	// - Row 15: empty
+	// - Row 14: road lane
+	// - ... continuing with alternating pattern
+	// - Row 4: road lane (top)
+	// - Row 3: empty
+	// - Row 2: hint/empty
+	// - Row 1: empty
+	// - Row 0: finish line
 	m.lanes = make([]lane, 0, 8)
-	startLane := gameAreaHeight - 3             // Start lanes just above the frog
-	for i := 0; i < 8 && startLane-i > 1; i++ { // Leave room for finish line
-		m.lanes = append(m.lanes, lane{
-			y:         startLane - i*2, // More spacing between lanes
-			direction: 1 - 2*(i%2),     // Alternate directions
-			speed:     0.5 + float64(i%3)*0.3,
-		})
+	lanePositions := []int{18, 16, 14, 12, 10, 8, 6, 4}
+	for i, y := range lanePositions {
+		if y < gameAreaHeight {
+			m.lanes = append(m.lanes, lane{
+				y:         y,
+				direction: 1 - 2*(i%2), // Alternate directions
+				speed:     0.5 + float64(i%3)*0.3,
+			})
+		}
 	}
 
 	// Generate initial obstacles
