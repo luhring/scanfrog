@@ -2,6 +2,7 @@ package game
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,9 +128,10 @@ func TestCollisionDetection(t *testing.T) {
 
 func TestFormatCollisionMessage(t *testing.T) {
 	tests := []struct {
-		name     string
-		obstacle obstacle
-		want     string
+		name           string
+		obstacle       obstacle
+		wantContains   []string
+		wantNotContain []string
 	}{
 		{
 			name: "with CVSS score",
@@ -138,7 +140,7 @@ func TestFormatCollisionMessage(t *testing.T) {
 				severity:      8.5,
 				severityLabel: "High",
 			},
-			want: "You were hit by CVE-2021-12345 (High, CVSS 8.5). Game over!",
+			wantContains: []string{"CVE-2021-12345", "High", "CVSS 8.5", "Game over!"},
 		},
 		{
 			name: "without CVSS score",
@@ -147,7 +149,8 @@ func TestFormatCollisionMessage(t *testing.T) {
 				severity:      0,
 				severityLabel: "Medium",
 			},
-			want: "You were hit by CVE-2021-12345 (Medium). Game over!",
+			wantContains:   []string{"CVE-2021-12345", "Medium", "Game over!"},
+			wantNotContain: []string{"CVSS"},
 		},
 		{
 			name: "CVSS but no label",
@@ -156,15 +159,35 @@ func TestFormatCollisionMessage(t *testing.T) {
 				severity:      9.5,
 				severityLabel: "",
 			},
-			want: "You were hit by CVE-2021-12345 (Critical, CVSS 9.5). Game over!",
+			wantContains: []string{"CVE-2021-12345", "Critical", "CVSS 9.5", "Game over!"},
+		},
+		{
+			name: "GHSA ID",
+			obstacle: obstacle{
+				cveID:         "GHSA-abcd-efgh-ijkl",
+				severity:      7.2,
+				severityLabel: "High",
+			},
+			wantContains: []string{"GHSA-abcd-efgh-ijkl", "High", "CVSS 7.2", "Game over!"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := formatCollisionMessage(tt.obstacle)
-			if got != tt.want {
-				t.Errorf("formatCollisionMessage() = %v, want %v", got, tt.want)
+
+			// Check that all expected substrings are present
+			for _, want := range tt.wantContains {
+				if !strings.Contains(got, want) {
+					t.Errorf("formatCollisionMessage() missing expected substring %q in message: %v", want, got)
+				}
+			}
+
+			// Check that unwanted substrings are not present
+			for _, notWant := range tt.wantNotContain {
+				if strings.Contains(got, notWant) {
+					t.Errorf("formatCollisionMessage() contains unexpected substring %q in message: %v", notWant, got)
+				}
 			}
 		})
 	}

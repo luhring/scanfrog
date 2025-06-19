@@ -3,10 +3,12 @@ package game
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/luhring/scanfrog/internal/grype"
+	"github.com/savioxavier/termlink"
 )
 
 func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -259,6 +261,8 @@ func (m Model) updateGame() Model {
 			m.state = stateGameOver
 			m.collisionCVE = obs.cveID
 			m.collisionMsg = formatCollisionMessage(obs)
+			obsCopy := obs // Make a copy to avoid pointer to loop variable
+			m.collisionObs = &obsCopy
 			return m
 		}
 	}
@@ -275,7 +279,33 @@ func (m Model) checkCollision(frog position, obs obstacle) bool {
 	return frog.x >= obs.pos.x && frog.x < obs.pos.x+obs.width
 }
 
+// getVulnerabilityURL returns the appropriate URL for a vulnerability ID
+func getVulnerabilityURL(vulnID string) string {
+	if strings.HasPrefix(vulnID, "CVE-") {
+		// CVE format: https://nvd.nist.gov/vuln/detail/CVE-2024-10041
+		return fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vulnID)
+	} else if strings.HasPrefix(vulnID, "GHSA-") {
+		// GHSA format: https://github.com/advisories/GHSA-xxxx-xxxx-xxxx
+		return fmt.Sprintf("https://github.com/advisories/%s", vulnID)
+	}
+	// If it's neither CVE nor GHSA, return empty string (no link)
+	return ""
+}
+
+// CollisionMessageParts contains the parts of the collision message for proper rendering
+type CollisionMessageParts struct {
+	Prefix string // "You were hit by "
+	VulnID string // The vulnerability ID (may contain hyperlink)
+	Suffix string // " (High, CVSS 7.5). Game over!"
+}
+
 func formatCollisionMessage(obs obstacle) string {
+	parts := FormatCollisionMessageParts(obs)
+	return parts.Prefix + parts.VulnID + parts.Suffix
+}
+
+// FormatCollisionMessageParts splits the collision message into parts for proper rendering
+func FormatCollisionMessageParts(obs obstacle) CollisionMessageParts {
 	// Use the actual severity label from Grype
 	severity := obs.severityLabel
 	if severity == "" {
@@ -292,13 +322,27 @@ func formatCollisionMessage(obs obstacle) string {
 		}
 	}
 
-	// Only show CVSS score if we actually have one
-	if obs.severity > 0 {
-		return fmt.Sprintf("You were hit by %s (%s, CVSS %.1f). Game over!",
-			obs.cveID, severity, obs.severity)
+	parts := CollisionMessageParts{
+		Prefix: "You were hit by ",
 	}
-	return fmt.Sprintf("You were hit by %s (%s). Game over!",
-		obs.cveID, severity)
+
+	// Add the vulnerability ID (with or without hyperlink)
+	if url := getVulnerabilityURL(obs.cveID); url != "" {
+		// termlink.Link will create a clickable hyperlink in supported terminals
+		// and fall back to plain text in unsupported terminals
+		parts.VulnID = termlink.Link(obs.cveID, url)
+	} else {
+		parts.VulnID = obs.cveID
+	}
+
+	// Add severity info
+	if obs.severity > 0 {
+		parts.Suffix = fmt.Sprintf(" (%s, CVSS %.1f). Game over!", severity, obs.severity)
+	} else {
+		parts.Suffix = fmt.Sprintf(" (%s). Game over!", severity)
+	}
+
+	return parts
 }
 
 func (m *Model) initializeDecorativeItems() {

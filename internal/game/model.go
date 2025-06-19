@@ -59,6 +59,7 @@ type Model struct {
 	// Game over state
 	collisionCVE string
 	collisionMsg string
+	collisionObs *obstacle // Store the obstacle for rendering
 
 	// Viewport
 	width, height int
@@ -206,6 +207,7 @@ func (m Model) restartGame() (tea.Model, tea.Cmd) {
 	m.hasMoved = false
 	m.collisionCVE = ""
 	m.collisionMsg = ""
+	m.collisionObs = nil
 	m.decorativeItems = nil
 	m.isZeroVulnGame = false
 	m.lastUpdate = time.Now()

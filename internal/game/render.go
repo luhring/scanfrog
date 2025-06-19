@@ -75,16 +75,6 @@ var (
 		Bold(true).
 		Align(lipgloss.Center, lipgloss.Center)
 
-	gameOverStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{
-			Light: "#B71C1C", // Dark red for light terminals
-			Dark:  "#F44336", // Bright red for dark terminals
-		}).
-		Bold(true).
-		Align(lipgloss.Center, lipgloss.Center).
-		Border(lipgloss.DoubleBorder()).
-		Padding(2, 4)
-
 	victoryStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.AdaptiveColor{
 			Light: "#2E7D32", // Dark green for light terminals
@@ -338,7 +328,38 @@ func (m Model) renderGame() string {
 }
 
 func (m Model) renderGameOver() string {
-	content := fmt.Sprintf("GAME OVER\n\n%s\n\nPress ENTER to try again\nPress Q to quit", m.collisionMsg)
+	// Create a style without borders for the content
+	contentStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{
+			Light: "#B71C1C", // Dark red for light terminals
+			Dark:  "#F44336", // Bright red for dark terminals
+		}).
+		Bold(true).
+		Align(lipgloss.Center)
+
+	// Build collision message line with proper styling
+	var collisionLine string
+	if m.collisionObs != nil {
+		parts := FormatCollisionMessageParts(*m.collisionObs)
+		// Style each part separately to avoid style conflicts with hyperlink
+		collisionLine = contentStyle.Render(parts.Prefix) + parts.VulnID + contentStyle.Render(parts.Suffix)
+	} else {
+		// Fallback to plain message
+		collisionLine = contentStyle.Render(m.collisionMsg)
+	}
+
+	// Render each line with proper styling
+	lines := []string{
+		contentStyle.Render("GAME OVER"),
+		"",
+		collisionLine,
+		"",
+		contentStyle.Render("Press ENTER to try again"),
+		contentStyle.Render("Press Q to quit"),
+	}
+
+	content := strings.Join(lines, "\n")
+
 	// Account for border (2) and padding (4 horizontal, 4 vertical) in total dimensions
 	// The Width/Height in lipgloss is the total box size including border
 	boxWidth := m.width - 2   // Leave some margin
@@ -349,7 +370,16 @@ func (m Model) renderGameOver() string {
 	if boxHeight < 10 {
 		boxHeight = 10
 	}
-	return gameOverStyle.Width(boxWidth).Height(boxHeight).Render(content)
+
+	// Apply the outer box style (with border) to the pre-styled content
+	boxStyle := lipgloss.NewStyle().
+		Align(lipgloss.Center, lipgloss.Center).
+		Border(lipgloss.DoubleBorder()).
+		Padding(2, 4).
+		Width(boxWidth).
+		Height(boxHeight)
+
+	return boxStyle.Render(content)
 }
 
 func (m Model) renderVictory() string {
