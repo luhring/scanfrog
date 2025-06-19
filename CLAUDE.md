@@ -44,6 +44,7 @@ Additional context available in @./README.md, and additional guidance for contri
   ./scanfrog alpine:latest     # Has CVSS scores
   ./scanfrog node:latest       # Mix of severities
   ```
+You (Claude) should never try to test by running the scanfrog binary directly yourself. Either run the tests or ask the user to test drive the binary.
 
 ## Common Pitfalls to Avoid
 

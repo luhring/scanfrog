@@ -52,6 +52,7 @@ func TestAllVulnerabilitiesAtOnce(t *testing.T) {
 	source := &mockVulnerabilitySource{vulns: vulns}
 
 	model := NewModel(source)
+	model.windowSizeReceived = true // Mark as received for test
 	// Simulate vulnerabilities loaded
 	*model = model.startGame(vulns)
 
@@ -246,6 +247,7 @@ func TestDeltaTimePhysics(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Record initial obstacle position

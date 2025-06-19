@@ -75,6 +75,9 @@ type Model struct {
 
 	// Cached vulnerability data
 	loadedVulns []grype.Vulnerability
+
+	// Track whether we've received initial window size
+	windowSizeReceived bool
 }
 
 type decorativeItem struct {
@@ -131,12 +134,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Width > 0 && msg.Height > 0 {
 			m.width = msg.Width
 			m.height = msg.Height
+
+			// Mark that we've received window size
+			if !m.windowSizeReceived {
+				m.windowSizeReceived = true
+
+				// If vulnerabilities are already loaded but we were waiting for window size,
+				// start the game now
+				if m.state == stateLoading && len(m.loadedVulns) > 0 {
+					return m.startGame(m.loadedVulns), m.tick()
+				}
+			}
+
+			// Window resizing during gameplay is now handled in updateGame()
+			// which checks if width changed since obstacles were generated
 		}
 		return m, nil
 
 	case vulnerabilitiesLoadedMsg:
 		m.loadedVulns = msg.vulns
-		return m.startGame(msg.vulns), m.tick()
+
+		// Only start the game if we've already received the window size
+		// This ensures obstacles are generated with the correct terminal width
+		if m.windowSizeReceived {
+			return m.startGame(msg.vulns), m.tick()
+		}
+
+		// Otherwise, stay in loading state until window size arrives
+		return m, nil
 
 	case vulnerabilityErrorMsg:
 		m.state = stateGameOver
@@ -202,7 +227,7 @@ func (m Model) tick() tea.Cmd {
 }
 
 func (m Model) restartGame() (tea.Model, tea.Cmd) {
-	// Reset game state while keeping loaded vulnerabilities
+	// Reset game state while keeping loaded vulnerabilities and window size
 	m.state = statePlaying
 	m.hasMoved = false
 	m.collisionCVE = ""
@@ -211,6 +236,7 @@ func (m Model) restartGame() (tea.Model, tea.Cmd) {
 	m.decorativeItems = nil
 	m.isZeroVulnGame = false
 	m.lastUpdate = time.Now()
+	// Note: we keep windowSizeReceived=true and current width/height
 
 	// Restart with cached vulnerabilities
 	return m.startGame(m.loadedVulns), m.tick()

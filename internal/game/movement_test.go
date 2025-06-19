@@ -21,6 +21,7 @@ func TestFrogMovementAndRendering(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Test cases for movement
@@ -136,6 +137,7 @@ func TestRowSpacingConsistency(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Test with hint visible
@@ -181,6 +183,7 @@ func TestRow3NotSkipped(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Move frog to row 3 (should be empty row above top road lane)
@@ -243,6 +246,9 @@ func TestInteractiveMovement(t *testing.T) {
 	// Create a test program
 	tm := teatest.NewTestModel(t, model)
 
+	// Send window size message first (required before game can start)
+	tm.Send(tea.WindowSizeMsg{Width: 80, Height: 24})
+
 	// Send the vulnerabilities loaded message to start the game
 	tm.Send(vulnerabilitiesLoadedMsg{vulns: vulns})
 
@@ -277,6 +283,7 @@ func TestNoRowSkippingFromBottom(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Debug: log all lanes
@@ -337,6 +344,7 @@ func TestExactlyThreeRowsBetweenTopRoadAndFinish(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Find the topmost road lane
@@ -376,6 +384,7 @@ func TestNoConsecutiveEmptyRows(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Create a map of which rows have lanes
@@ -410,6 +419,7 @@ func TestExactLayoutPattern(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Define expected layout from bottom to top
@@ -473,6 +483,7 @@ func TestVisualRendering(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Hide hint to simplify counting
@@ -547,6 +558,7 @@ func TestActualRowCounting(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Test with hint visible
@@ -603,6 +615,7 @@ func TestFrogMovementNoSkipping(t *testing.T) {
 	model := NewModel(source)
 	model.width = 80
 	model.height = 24
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame(vulns)
 
 	// Start at bottom (y=19)

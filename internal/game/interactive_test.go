@@ -142,6 +142,7 @@ func TestRenderOutput(t *testing.T) {
 	source := &mockVulnerabilitySource{vulns: vulns}
 	model := NewModel(source)
 	model.state = statePlaying
+	model.windowSizeReceived = true // Mark as received for test
 	*model = model.startGame(vulns)
 
 	// Render the view

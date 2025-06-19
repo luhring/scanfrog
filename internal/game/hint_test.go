@@ -58,6 +58,7 @@ func TestHintDisplay(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			source := &mockVulnerabilitySource{vulns: tt.vulns}
 			model := NewModel(source)
+			model.windowSizeReceived = true // Mark as received for test
 			gameModel := model.startGame(tt.vulns)
 
 			// Set movement state
@@ -90,6 +91,7 @@ func TestHintDisplay(t *testing.T) {
 func TestDecorativeItems(t *testing.T) {
 	source := &mockVulnerabilitySource{vulns: []grype.Vulnerability{}}
 	model := NewModel(source)
+	model.windowSizeReceived = true // Mark as received for test
 	gameModel := model.startGame([]grype.Vulnerability{})
 
 	// Check that decorative items were created for zero-vuln game
