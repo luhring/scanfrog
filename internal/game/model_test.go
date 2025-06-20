@@ -259,20 +259,20 @@ func TestDeltaTimePhysics(t *testing.T) {
 	// Update the game a few times to ensure movement happens
 	time.Sleep(10 * time.Millisecond) // Small sleep to ensure time advances
 	gameModel = gameModel.updateGame()
-	
+
 	// Check that obstacle moved
 	finalX := gameModel.obstacles[0].floatX
 	if finalX == initialX {
 		t.Error("Obstacle did not move after update")
 	}
-	
+
 	// Basic sanity check - obstacle should move in the expected direction
 	// (direction can be positive or negative based on lane)
 	moved := finalX - initialX
 	if moved == 0 {
 		t.Error("Obstacle position did not change")
 	}
-	
+
 	// The movement should be reasonable (not the huge number we were seeing)
 	if math.Abs(moved) > 100 {
 		t.Errorf("Obstacle movement too large: moved %.2f units", moved)
