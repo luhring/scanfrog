@@ -31,6 +31,39 @@ jobs:
       - name: Run go vet
         run: make vet
       
+      - name: Debug Go environment
+        run: |
+          echo "=== Go version details ==="
+          go version
+          go version -m $(which go) || true
+          echo
+          echo "=== Go environment ==="
+          go env | grep -E "GOWORK|GOPATH|GOMODCACHE|GOCACHE|GOPROXY|GO111MODULE|GOROOT|GOARCH|GOOS"
+          echo
+          echo "=== Current directory ==="
+          pwd
+          echo
+          echo "=== Directory contents ==="
+          ls -la
+          echo
+          echo "=== Go packages in module ==="
+          go list ./...
+          echo
+          echo "=== Why cobra is needed ==="
+          go mod why github.com/spf13/cobra
+          echo
+          echo "=== Module graph for cobra ==="
+          go mod graph | grep cobra
+          echo
+          echo "=== Check if cmd/scanfrog is recognized ==="
+          go list -json ./cmd/scanfrog | jq -r '.ImportPath,.Name,.GoFiles'
+          echo
+          echo "=== Contents of cmd/scanfrog ==="
+          ls -la cmd/scanfrog/
+          echo
+          echo "=== First 20 lines of main.go ==="
+          head -20 cmd/scanfrog/main.go
+      
       - name: Check go mod tidy
         run: make tidy
 
