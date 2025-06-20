@@ -39,11 +39,6 @@ linters-settings:
   gocognit:
     min-complexity: 20  # Allow for game logic complexity
     
-  govet:
-    settings:
-      shadow:
-        strict: false
-      
   errcheck:
     check-type-assertions: true
     check-blank: false  # Allow _ = err in some cases
