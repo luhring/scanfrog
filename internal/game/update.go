@@ -121,6 +121,9 @@ func (m Model) startGame(vulns []grype.Vulnerability) Model {
 		m.initializeDecorativeItems()
 	}
 
+	// Initialize last update time for delta time calculations
+	m.lastUpdate = time.Now()
+
 	return m
 }
 

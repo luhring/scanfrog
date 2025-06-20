@@ -1,6 +1,5 @@
 # golangci-lint configuration for Scanfrog
 # Focuses on game development best practices and terminal UI concerns
-version: "2"
 
 run:
   timeout: 5m
