@@ -30,6 +30,7 @@ vet: ## Run go vet
 .PHONY: tidy
 tidy: ## Run go mod tidy and verify
 	@echo "Running go mod tidy..."
+	@go mod download
 	@go mod tidy
 	@git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is dirty after tidy" && exit 1)
 
