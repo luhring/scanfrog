@@ -156,7 +156,7 @@ func TestRenderOutput(t *testing.T) {
 	// }
 
 	// For now, just check it's not empty
-	if len(output) == 0 {
+	if output == "" {
 		t.Error("expected non-empty render output")
 	}
 

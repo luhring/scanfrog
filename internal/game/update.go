@@ -301,14 +301,15 @@ func (m Model) updateGame() Model {
 
 	// Check collisions
 	for _, obs := range m.obstacles {
-		if m.checkCollision(m.frog, obs) {
-			m.state = stateGameOver
-			m.collisionCVE = obs.cveID
-			m.collisionMsg = formatCollisionMessage(obs)
-			obsCopy := obs // Make a copy to avoid pointer to loop variable
-			m.collisionObs = &obsCopy
-			return m
+		if !m.checkCollision(m.frog, obs) {
+			continue
 		}
+		m.state = stateGameOver
+		m.collisionCVE = obs.cveID
+		obsCopy := obs // Make a copy to avoid pointer to loop variable
+		m.collisionMsg = formatCollisionMessage(&obsCopy)
+		m.collisionObs = &obsCopy
+		return m
 	}
 
 	return m
@@ -343,13 +344,13 @@ type CollisionMessageParts struct {
 	Suffix string // " (High, CVSS 7.5). Game over!"
 }
 
-func formatCollisionMessage(obs obstacle) string {
+func formatCollisionMessage(obs *obstacle) string {
 	parts := FormatCollisionMessageParts(obs)
 	return parts.Prefix + parts.VulnID + parts.Suffix
 }
 
 // FormatCollisionMessageParts splits the collision message into parts for proper rendering
-func FormatCollisionMessageParts(obs obstacle) CollisionMessageParts {
+func FormatCollisionMessageParts(obs *obstacle) CollisionMessageParts {
 	// Use the actual severity label from Grype
 	severity := obs.severityLabel
 	if severity == "" {

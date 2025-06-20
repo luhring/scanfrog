@@ -396,7 +396,7 @@ func (m Model) renderGameOver() string {
 	// Build collision message line with proper styling
 	var collisionLine string
 	if m.collisionObs != nil {
-		parts := FormatCollisionMessageParts(*m.collisionObs)
+		parts := FormatCollisionMessageParts(m.collisionObs)
 		// Style each part separately to avoid style conflicts with hyperlink
 		collisionLine = contentStyle.Render(parts.Prefix) + parts.VulnID + contentStyle.Render(parts.Suffix)
 	} else {
