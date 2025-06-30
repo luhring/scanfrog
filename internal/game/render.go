@@ -98,6 +98,27 @@ var (
 			Light: "#4CAF50", // Green for light terminals
 			Dark:  "#81C784", // Light green for dark terminals
 		})
+
+	// Add a style for bicycles (negligible)
+	bicycleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{
+			Light: "#1976D2", // Blue for light terminals
+			Dark:  "#64B5F6", // Light blue for dark terminals
+		})
+
+	// Add a style for low severity cars
+	lowCarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{
+			Light: "#388E3C", // Green for light terminals
+			Dark:  "#81C784", // Light green for dark terminals
+		})
+
+	// Add a style for medium severity cars
+	mediumCarStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.AdaptiveColor{
+			Light: "#FBC02D", // Yellow for light terminals
+			Dark:  "#FFF176", // Light yellow for dark terminals
+		})
 )
 
 func (m Model) renderLoading() string {
@@ -481,8 +502,12 @@ func (m Model) getObstacleEmoji(cvssScore float64, severityLabel string) string 
 			return bossStyle.Render("🦖") // T-Rex for critical
 		case cvssScore >= 7.0:
 			return truckStyle.Render("🚛") // Truck for high
+		case cvssScore >= 4.0:
+			return mediumCarStyle.Render("🚗") // Car for medium
+		case cvssScore > 0:
+			return lowCarStyle.Render("🚗") // Car for low
 		default:
-			return carStyle.Render("🚗") // Car for medium/low with CVSS
+			return bicycleStyle.Render("🚲") // Bicycle for negligible
 		}
 	}
 
@@ -492,6 +517,12 @@ func (m Model) getObstacleEmoji(cvssScore float64, severityLabel string) string 
 		return bossStyle.Render("🦖")
 	case "High":
 		return truckStyle.Render("🚛")
+	case "Medium":
+		return mediumCarStyle.Render("🚗")
+	case "Low":
+		return lowCarStyle.Render("🚗")
+	case "Negligible":
+		return bicycleStyle.Render("🚲")
 	default:
 		return carStyle.Render("🚗")
 	}
