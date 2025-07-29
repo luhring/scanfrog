@@ -102,10 +102,17 @@ linters:
           - gosec
           - errcheck
           - gocyclo
+          - gocognit
 
       # Allow magic numbers in game mechanics
       - path: internal/game/
         text: "magic number"
+      
+      # Allow value receivers for Model methods (Bubble Tea pattern)
+      - path: internal/game/
+        linters:
+          - gocritic
+        text: "hugeParam"
 
 issues:
   # Maximum issues count per one linter

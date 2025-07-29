@@ -4,6 +4,7 @@
 package game
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -170,5 +171,5 @@ func TestRenderOutput(t *testing.T) {
 }
 
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && s != substr
+	return s != "" && substr != "" && strings.Contains(s, substr)
 }

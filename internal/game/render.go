@@ -276,7 +276,7 @@ func (m Model) renderHintRow(row []rune, output *strings.Builder) {
 }
 
 // findObstacleAt finds an obstacle at the given position
-func (m Model) findObstacleAt(x, y int) (bool, float64, string) {
+func (m Model) findObstacleAt(x, y int) (found bool, severity float64, severityLabel string) {
 	for _, obs := range m.obstacles {
 		if obs.pos.y == y && x >= obs.pos.x && x < obs.pos.x+obs.width {
 			return true, obs.severity, obs.severityLabel
@@ -286,7 +286,7 @@ func (m Model) findObstacleAt(x, y int) (bool, float64, string) {
 }
 
 // findDecorativeItemAt finds a decorative item at the given position
-func (m Model) findDecorativeItemAt(x, y int) (bool, string) {
+func (m Model) findDecorativeItemAt(x, y int) (found bool, symbol string) {
 	if m.isZeroVulnGame {
 		for _, item := range m.decorativeItems {
 			if item.y == y && item.x == x {
