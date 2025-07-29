@@ -16,7 +16,7 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    
+
     # Additional linters for quality
     - gocyclo       # Cyclomatic complexity
     - gocognit      # Cognitive complexity  
@@ -26,21 +26,21 @@ linters:
     
     # Security
     - gosec         # Security checks
-    
+
     # Error handling
     - errcheck      # Check error returns
     - errorlint     # Error wrapping
-    
+
     # Performance (important for games)
     - gocritic      # Various checks
 
 linters-settings:
   gocyclo:
     min-complexity: 15  # Games can have complex update loops
-    
+
   gocognit:
     min-complexity: 20  # Allow for game logic complexity
-    
+
   errcheck:
     check-type-assertions: true
     check-blank: false  # Allow _ = err in some cases
@@ -51,7 +51,7 @@ linters-settings:
       - fmt.Fprint
       - fmt.Fprintf
       - fmt.Fprintln
-      
+
   gocritic:
     enabled-tags:
       - diagnostic
@@ -60,12 +60,12 @@ linters-settings:
     disabled-checks:
       - commentedOutCode  # Allow during development
       - whyNoLint        # Don't require explanations
-      
+
   gosec:
     excludes:
       - G104  # Duplicates errcheck
       - G304  # File path provided by user is OK
-      
+
   revive:
     enable-all-rules: false
     rules:
@@ -89,26 +89,26 @@ issues:
       linters:
         - gocyclo
         - gocognit
-        
+
     # Allow complex rendering logic
     - path: internal/game/render.go
       linters:
         - gocyclo
         - gocognit
-        
+
     # Test files can be more relaxed
     - path: _test\.go
       linters:
         - gosec
         - errcheck
         - gocyclo
-        
+
     # Allow magic numbers in game mechanics
     - path: internal/game/
       text: "magic number"
-        
+
   # Maximum issues count per one linter
   max-issues-per-linter: 50
-  
+
   # Maximum count of issues with the same text
   max-same-issues: 3
