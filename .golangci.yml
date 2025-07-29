@@ -16,7 +16,7 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    
+
     # Additional linters for quality
     - gocyclo       # Cyclomatic complexity
     - gocognit      # Cognitive complexity  
@@ -26,89 +26,97 @@ linters:
     
     # Security
     - gosec         # Security checks
-    
+
     # Error handling
     - errcheck      # Check error returns
     - errorlint     # Error wrapping
-    
+
     # Performance (important for games)
     - gocritic      # Various checks
 
-linters-settings:
-  gocyclo:
-    min-complexity: 15  # Games can have complex update loops
-    
-  gocognit:
-    min-complexity: 20  # Allow for game logic complexity
-    
-  errcheck:
-    check-type-assertions: true
-    check-blank: false  # Allow _ = err in some cases
-    exclude-functions:
-      - fmt.Print
-      - fmt.Printf
-      - fmt.Println
-      - fmt.Fprint
-      - fmt.Fprintf
-      - fmt.Fprintln
-      
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - performance
-      - style
-    disabled-checks:
-      - commentedOutCode  # Allow during development
-      - whyNoLint        # Don't require explanations
-      
-  gosec:
-    excludes:
-      - G104  # Duplicates errcheck
-      - G304  # File path provided by user is OK
-      
-  revive:
-    enable-all-rules: false
+  settings:
+    gocyclo:
+      min-complexity: 15  # Games can have complex update loops
+
+    gocognit:
+      min-complexity: 20  # Allow for game logic complexity
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: false  # Allow _ = err in some cases
+      exclude-functions:
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - commentedOutCode  # Allow during development
+        - whyNoLint        # Don't require explanations
+
+    gosec:
+      excludes:
+        - G104  # Duplicates errcheck
+        - G304  # File path provided by user is OK
+
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: var-declaration
+        - name: var-naming
+
+  exclusions:
     rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: var-declaration
-      - name: var-naming
+      # Allow complex functions in game logic
+      - path: internal/game/update.go
+        linters:
+          - gocyclo
+          - gocognit
+
+      # Allow complex rendering logic
+      - path: internal/game/render.go
+        linters:
+          - gocyclo
+          - gocognit
+
+      # Test files can be more relaxed
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+          - gocyclo
+          - gocognit
+
+      # Allow magic numbers in game mechanics
+      - path: internal/game/
+        text: "magic number"
+      
+      # Allow value receivers for Model methods (Bubble Tea pattern)
+      - path: internal/game/
+        linters:
+          - gocritic
+        text: "hugeParam"
 
 issues:
-  exclude-rules:
-    # Allow complex functions in game logic
-    - path: internal/game/update.go
-      linters:
-        - gocyclo
-        - gocognit
-        
-    # Allow complex rendering logic
-    - path: internal/game/render.go
-      linters:
-        - gocyclo
-        - gocognit
-        
-    # Test files can be more relaxed
-    - path: _test\.go
-      linters:
-        - gosec
-        - errcheck
-        - gocyclo
-        
-    # Allow magic numbers in game mechanics
-    - path: internal/game/
-      text: "magic number"
-        
   # Maximum issues count per one linter
   max-issues-per-linter: 50
-  
+
   # Maximum count of issues with the same text
   max-same-issues: 3
