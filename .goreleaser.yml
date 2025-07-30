@@ -105,7 +105,7 @@ release:
     scanfrog --json grype-output.json
     ```
     
-    **Full Changelog**: https://github.com/luhring/scanfrog/compare/{{ .PreviousTag }}...{{ .Tag }}
+    {{ if .PreviousTag }}**Full Changelog**: https://github.com/luhring/scanfrog/compare/{{ .PreviousTag }}...{{ .Tag }}{{ else }}**Initial Release**: This is the first release of Scanfrog! 🎉{{ end }}
 
   # Prefer to release as draft first
   draft: true

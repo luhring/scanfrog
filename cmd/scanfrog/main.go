@@ -11,7 +11,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const devVersion = "dev"
+
 var (
+	// Version information set by goreleaser during build
+	version = devVersion
+	commit  = "none"
+	date    = "unknown"
+
 	jsonFile string
 	rootCmd  = &cobra.Command{
 		Use:   "scanfrog [image]",
@@ -24,10 +31,23 @@ using Grype and rendered with Bubble Tea.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: runGame,
 	}
+
+	versionCmd = &cobra.Command{
+		Use:   "version",
+		Short: "Print version information",
+		Run: func(_ *cobra.Command, _ []string) {
+			fmt.Printf("scanfrog version %s\n", version)
+			if version != devVersion {
+				fmt.Printf("  commit: %s\n", commit)
+				fmt.Printf("  built:  %s\n", date)
+			}
+		},
+	}
 )
 
 func init() {
 	rootCmd.Flags().StringVar(&jsonFile, "json", "", "Path to pre-existing Grype JSON file")
+	rootCmd.AddCommand(versionCmd)
 }
 
 func main() {
