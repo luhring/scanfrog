@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -29,16 +31,12 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	// e.g., ssh -p 2222 localhost ubuntu:latest -> command = ["ubuntu:latest"]
 	command := s.Command()
 
-	var vulnSource grype.VulnerabilitySource
-
-	if len(command) == 0 {
-		// No command provided - use sample data
-		vulnSource = &grype.FileSource{Path: "testdata/sample-vulns.json"}
-	} else {
+	imageName := "ubuntu:latest"
+	if len(command) != 0 {
 		// Use the first argument as the image name to scan
-		imageName := command[0]
-		vulnSource = &grype.ScannerSource{Image: imageName}
+		imageName = command[0]
 	}
+	vulnSource := &grype.ScannerSource{Image: imageName}
 
 	// Create new game model for this session
 	model := game.NewModel(vulnSource)
@@ -114,9 +112,14 @@ Users can connect via SSH and specify an image to scan, or use sample data if no
 
 func init() {
 	// Set default host key path
-	homeDir, _ := os.UserHomeDir()
-	defaultKeyPath := filepath.Join(homeDir, ".ssh", "scanfrog_host_key")
-
+	homeDir, err := os.UserHomeDir()
+	var defaultKeyPath string
+	if err != nil || homeDir == "" {
+		log.Print("Warning: could not determine home directory, using fallback for host key path")
+		defaultKeyPath = filepath.Join(".ssh", "scanfrog_host_key")
+	} else {
+		defaultKeyPath = filepath.Join(homeDir, ".ssh", "scanfrog_host_key")
+	}
 	serveCmd.Flags().IntVar(&sshPort, "port", 2222, "Port to bind SSH server to")
 	serveCmd.Flags().StringVar(&hostKeyPath, "host-key", defaultKeyPath, "Path to SSH host key (will be generated if it doesn't exist)")
 }
@@ -141,7 +144,7 @@ func runServe(*cobra.Command, []string) error {
 	fmt.Printf("Users can connect with: ssh -p %d localhost\n", sshPort)
 
 	go func() {
-		if err = server.ListenAndServe(); err != nil && err != ssh.ErrServerClosed {
+		if err = server.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 			fmt.Printf("SSH server error: %v\n", err)
 		}
 	}()
@@ -152,7 +155,7 @@ func runServe(*cobra.Command, []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil && err != ssh.ErrServerClosed {
+	if err := server.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		return fmt.Errorf("SSH server shutdown error: %w", err)
 	}
 
