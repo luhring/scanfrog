@@ -48,6 +48,7 @@ using Grype and rendered with Bubble Tea.`,
 func init() {
 	rootCmd.Flags().StringVar(&jsonFile, "json", "", "Path to pre-existing Grype JSON file")
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(serveCmd)
 }
 
 func main() {
