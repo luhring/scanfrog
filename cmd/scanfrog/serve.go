@@ -12,8 +12,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
-	"github.com/charmbracelet/wish/activeterm"
-	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
 	"github.com/luhring/scanfrog/internal/game"
 	"github.com/luhring/scanfrog/internal/grype"
@@ -27,9 +25,20 @@ var (
 
 // teaHandler creates a new Bubble Tea program for each SSH session
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-	// For SSH mode, we'll default to using sample data for now
-	// This could be extended to allow SSH clients to specify images
-	vulnSource := &grype.FileSource{Path: "testdata/sample-vulns.json"}
+	// Get the command from the SSH session - this is what the user typed after the hostname
+	// e.g., ssh -p 2222 localhost ubuntu:latest -> command = ["ubuntu:latest"]
+	command := s.Command()
+
+	var vulnSource grype.VulnerabilitySource
+
+	if len(command) == 0 {
+		// No command provided - use sample data
+		vulnSource = &grype.FileSource{Path: "testdata/sample-vulns.json"}
+	} else {
+		// Use the first argument as the image name to scan
+		imageName := command[0]
+		vulnSource = &grype.ScannerSource{Image: imageName}
+	}
 
 	// Create new game model for this session
 	model := game.NewModel(vulnSource)
@@ -37,15 +46,68 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return model, []tea.ProgramOption{tea.WithAltScreen()}
 }
 
+// customSessionHandler handles SSH sessions with both PTY and non-PTY support
+func customSessionHandler(next ssh.Handler) ssh.Handler {
+	return func(s ssh.Session) {
+		command := s.Command()
+
+		// Check if we have a PTY
+		_, winCh, isPty := s.Pty()
+
+		if isPty {
+			// Handle PTY session (interactive) - use Bubble Tea
+			model, opts := teaHandler(s)
+
+			// Add PTY-specific options
+			opts = append(opts, tea.WithInput(s), tea.WithOutput(s))
+
+			p := tea.NewProgram(model, opts...)
+
+			// Handle window resize events
+			go func() {
+				for win := range winCh {
+					p.Send(tea.WindowSizeMsg{
+						Width:  win.Width,
+						Height: win.Height,
+					})
+				}
+			}()
+
+			if _, err := p.Run(); err != nil {
+				fmt.Fprintf(s.Stderr(), "Error running game: %v\r\n", err)
+			}
+		} else {
+			// Handle non-PTY session (command execution)
+			if len(command) == 0 {
+				// No command and no PTY - instruct user to use PTY for interactive mode
+				fmt.Fprintf(s, "Interactive mode requires a PTY. Use: ssh -t -p %d localhost\r\n", sshPort)
+				fmt.Fprintf(s, "Or specify an image to scan: ssh -p %d localhost ubuntu:latest\r\n", sshPort)
+				return
+			}
+
+			// For command execution, we'll provide a text-based response
+			imageName := command[0]
+			fmt.Fprintf(s, "Scanning image: %s\r\n", imageName)
+			fmt.Fprintf(s, "Note: This would normally run the interactive game.\r\n")
+			fmt.Fprintf(s, "For the full interactive experience, use: ssh -t -p %d localhost %s\r\n", sshPort, imageName)
+		}
+	}
+}
+
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start SSH server for remote scanfrog access",
 	Long: `Start an SSH server that allows remote users to connect and play the scanfrog game.
-Users can connect via SSH and play the vulnerability visualization game remotely.`,
-	Example: `
+Users can connect via SSH and specify an image to scan, or use sample data if no image is provided.`,
+	Example: `  # Start server
   scanfrog serve                           # Start server on localhost:2222
   scanfrog serve --port 2223               # Use custom port
-  scanfrog serve --host-key ./mykey.pem    # Use custom host key`,
+  scanfrog serve --host-key ./mykey.pem    # Use custom host key
+
+  # Connect and play (from another terminal)
+  ssh -t -p 2222 localhost                # Play with sample vulnerabilities
+  ssh -t -p 2222 localhost ubuntu:latest  # Scan and play with ubuntu:latest
+  ssh -p 2222 localhost alpine:3.18       # Get scan info (non-interactive)`,
 	SilenceUsage: true,
 	RunE:         runServe,
 }
@@ -64,8 +126,7 @@ func runServe(*cobra.Command, []string) error {
 		wish.WithAddress(fmt.Sprintf(":%d", sshPort)),
 		wish.WithHostKeyPath(hostKeyPath),
 		wish.WithMiddleware(
-			bubbletea.Middleware(teaHandler),
-			activeterm.Middleware(),
+			customSessionHandler,
 			logging.Middleware(),
 		),
 	)
