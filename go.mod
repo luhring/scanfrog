@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/wish v1.4.7
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20250616121729-19b66ab4499b
 	github.com/savioxavier/termlink v1.4.3
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 )
 
 require (
